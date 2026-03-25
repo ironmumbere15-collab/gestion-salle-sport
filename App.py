@@ -1,8 +1,17 @@
 import streamlit as st
+from supabase import create_client, Client
 import pandas as pd
-from datetime import datetime, timedelta
-from PIL import Image
-from supabase import create_client
+
+# 1. Connexion (à mettre en haut de ton script)
+url: str = st.secrets["SUPABASE_URL"]
+key: str = st.secrets["SUPABASE_KEY"]
+supabase: Client = create_client(url, key)
+
+# 2. Initialisation du Session State pour stocker les données localement
+if 'abonnés' not in st.session_state:
+    st.session_state['abonnés'] = pd.DataFrame(columns=[
+        "Nom", "Date début", "Durée (mois)", "Date fin", "WhatsApp", "Statut"
+    ])
 
 # ===== CONFIGURATION =====
 st.set_page_config(page_title="365 GYM & FITNESS", layout="wide", page_icon="💪")
