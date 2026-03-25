@@ -133,7 +133,7 @@ elif choix == "Contact":
     st.write("Contacter via WhatsApp : +243XXXXXXXXX")
 
 elif choix == "Publicité / Site web":
-    st.title("🌐 Publicité / Site web")
+    st.title("365 GYM & FITNESS")
     st.write("Poster vos exploits, photos ou liens vers le site web")
     st.text_input("Titre / Sujet")
     st.text_area("Description / Détails")
