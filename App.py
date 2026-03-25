@@ -36,7 +36,7 @@ def embellir_formulaire():
 
 # ===== LOGIN ADMIN =====
 st.sidebar.image("logo.png", width=120)
-st.sidebar.markdown("<h4 style='text-align:center;color:#ff4b4b;'>365 GYM & FITNESS</h4>", unsafe_allow_html=True)
+st.sidebar.markdown("<h3 style='text-align:center; color:white; font-weight:bold;'>365 GYM & FITNESS</h3>", unsafe_allow_html=True)
 
 if not st.session_state['admin']:
     st.sidebar.subheader("Connexion Admin")
@@ -49,8 +49,8 @@ if not st.session_state['admin']:
             st.sidebar.error("Mot de passe incorrect")
 
 # ===== BARRE DE NAVIGATION =====
-menu_public = ["Forum", "Galerie", "Contact", "Publicité / Site web"]
-menu_admin = ["Tableau de bord", "Ajouter Abonné", "Abonnés expirant", "Abonnés expirés"]
+menu_public = ["Forum", "Galerie", "Contact"]
+menu_admin = ["Tableau de bord", "Ajouter Abonné", "Abonnés expirant", "Abonnés expirés", "Publicité / Site web"]
 
 menu = menu_admin + menu_public if st.session_state.get('admin', False) else menu_public
 choix = st.sidebar.radio("Menu", menu)
@@ -117,6 +117,16 @@ if st.session_state.get('admin', False):
         expirés = df[df["Date fin"] < pd.Timestamp(datetime.now())]
         st.dataframe(expirés)
 
+    elif choix == "Publicité / Site web":
+        st.title("🌐 Publicité / Site web (Admin)")
+        st.write("Poster vos exploits, photos ou liens vers le site web")
+        st.text_input("Titre / Sujet")
+        st.text_area("Description / Détails")
+        st.file_uploader("Ajouter image ou vidéo", type=["png","jpg","mp4"])
+        st.text_input("Lien du site web")
+        if st.button("Publier"):
+            st.success("✅ Publication ajoutée ! (simulation)")
+
 # ===== FORMULAIRES PUBLICS =====
 if choix == "Forum":
     st.title("💬 Forum")
@@ -131,13 +141,3 @@ elif choix == "Galerie":
 elif choix == "Contact":
     st.title("📞 Contact")
     st.write("Contacter via WhatsApp : +243XXXXXXXXX")
-
-elif choix == "Publicité / Site web":
-    st.title("365 GYM & FITNESS")
-    st.write("Poster vos exploits, photos ou liens vers le site web")
-    st.text_input("Titre / Sujet")
-    st.text_area("Description / Détails")
-    st.file_uploader("Ajouter image ou vidéo", type=["png","jpg","mp4"])
-    st.text_input("Lien du site web")
-    if st.button("Publier"):
-        st.success("✅ Publication ajoutée ! (simulation)")
