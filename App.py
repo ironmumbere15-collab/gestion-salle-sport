@@ -102,13 +102,14 @@ if st.session_state.get('admin', False):
             }])], ignore_index=True)
             st.success(f"✅ Abonné {nom} ajouté !")
 
-  # Expirations dans 3 jours - Tableau de bord
-exp_3_jours = df[df["Date fin"] <= (pd.Timestamp(datetime.now()) + timedelta(days=3))]
-st.subheader("Abonnements expirant dans 3 jours")
-for idx, row in exp_3_jours.iterrows():
-    st.markdown(f"💡 **{row['Nom']}** - Expire le {row['Date fin'].strftime('%d/%m/%Y')}")
-    if st.button(f"📩 Notifier {row['Nom']}", key=f"notif_{idx}"):
-        notifier_whatsapp(row['Nom'])
+    elif choix == "Abonnés expirant":
+        st.title("⏳ Abonnements proches de l'expiration")
+        df = st.session_state['abonnés']
+        exp_3_jours = df[df["Date fin"] <= (pd.Timestamp(datetime.now()) + timedelta(days=3))]
+        for _, row in exp_3_jours.iterrows():
+            st.markdown(f"💡 **{row['Nom']}** - Expire le {row['Date fin'].strftime('%d/%m/%Y')}")
+            if st.button("📩 Notifier", key=f"notif2_{row['Nom']}"):
+                notifier_whatsapp(row['Nom'])
 
     elif choix == "Abonnés expirés":
         st.title("❌ Abonnements expirés")
