@@ -2,117 +2,123 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
 
-# --- CONFIGURATION PAGE ---
-st.set_page_config(page_title="365 GYM & FITNESS", layout="wide")
+# ===== CONFIGURATION =====
+st.set_page_config(page_title="365 GYM & FITNESS", layout="wide", page_icon="💪")
 
-# --- LOGIN ADMIN SIMPLE ---
-admin_password = "monmotdepasse"  # REMPLACE PAR TON MOT DE PASSE
-if 'admin_logged' not in st.session_state:
-    st.session_state.admin_logged = False
+ADMIN_PASSWORD = "1980"
 
-if not st.session_state.admin_logged:
-    st.title("🔒 Connexion Admin")
-    pwd = st.text_input("Mot de passe", type="password")
-    if st.button("Se connecter"):
-        if pwd == admin_password:
-            st.session_state.admin_logged = True
+# ===== SESSION STATE =====
+if 'admin' not in st.session_state:
+    st.session_state['admin'] = False
+
+if 'abonnés' not in st.session_state:
+    # Exemple de base initiale
+    st.session_state['abonnés'] = pd.DataFrame(columns=[
+        "Nom", "Date début", "Durée (mois)", "Date fin", "WhatsApp", "Statut"
+    ])
+
+# ===== FONCTIONS =====
+def calculer_date_fin(date_debut, duree):
+    return date_debut + pd.DateOffset(months=duree)
+
+def notifier_whatsapp(nom):
+    st.info(f"Message WhatsApp envoyé à {nom} (simulé)")
+
+def afficher_abonnés(df):
+    st.dataframe(df)
+
+# ===== LOGIN ADMIN =====
+st.sidebar.image("logo.png", width=100)
+st.sidebar.markdown("<h3 style='text-align:center;'>365 GYM & FITNESS</h3>", unsafe_allow_html=True)
+
+if not st.session_state['admin']:
+    st.sidebar.subheader("Connexion Admin")
+    password_input = st.sidebar.text_input("Mot de passe", type="password")
+    if st.sidebar.button("Se connecter"):
+        if password_input == ADMIN_PASSWORD:
+            st.session_state['admin'] = True
             st.experimental_rerun()
         else:
-            st.error("Mot de passe incorrect")
-else:
-    # --- SIDEBAR GAUCHE ---
-    st.sidebar.image("logo.png", width=150)
-    st.sidebar.markdown("<h3 style='text-align:center;color:#1a73e8;'>365 GYM & FITNESS</h3>", unsafe_allow_html=True)
+            st.sidebar.error("Mot de passe incorrect")
+    st.stop()
 
-    menu = ["Tableau de Bord", "Ajouter/Modifier Abonnés", "Notifier Abonnements", "Abonnés Expirés", "Forum", "Galerie", "Contact WhatsApp"]
-    choix = st.sidebar.selectbox("", menu)
+# ===== BARRE DE NAVIGATION =====
+menu = ["Tableau de bord", "Ajouter Abonné", "Abonnés expirant", "Abonnés expirés", "Forum", "Galerie", "Contact"]
+choix = st.sidebar.radio("Menu", menu)
 
-    # --- DONNÉES SIMULÉES ---
-    data = {
-        'Nom': ['Jean Dupont', 'Marie Martin', 'Isaac Kabuya', 'Sarah Luvumbu'],
-        'Téléphone': ['+24381000000', '+24399000000', '+24382000000', '+24385000000'],
-        'Date_Fin': ['2024-05-28', '2024-06-15', '2024-05-28', '2024-07-01'],
-        'Type': ['Mensuel', 'Trimestriel', 'Mensuel', 'Annuel']
-    }
-    df = pd.DataFrame(data)
-    df['Date_Fin'] = pd.to_datetime(df['Date_Fin'])
+# ===== TABLEAU DE BORD =====
+if choix == "Tableau de bord":
+    st.title("Tableau de bord - 365 GYM & FITNESS")
+    df = st.session_state['abonnés']
+    st.subheader("Liste des abonnés")
+    search = st.text_input("Rechercher par nom")
+    if search:
+        df = df[df["Nom"].str.contains(search, case=False)]
+    st.dataframe(df)
 
-    aujourdhui = datetime.now()
-    dans_3_jours = (aujourdhui + timedelta(days=3)).date()
+    # Expirations dans 3 jours
+    exp_3_jours = df[df["Date fin"] <= (pd.Timestamp(datetime.now()) + timedelta(days=3))]
+    st.subheader("Abonnements expirant dans 3 jours")
+    for _, row in exp_3_jours.iterrows():
+        col1, col2 = st.columns([3,1])
+        with col1:
+            st.write(f"{row['Nom']} - Expire le {row['Date fin'].strftime('%d/%m/%Y')}")
+        with col2:
+            if st.button(f"Notifier {row['Nom']}", key=f"notif_{row['Nom']}"):
+                notifier_whatsapp(row['Nom'])
 
-    # --- STYLE CSS POUR LES COULEURS ---
-    st.markdown("""
-    <style>
-    .stButton>button {background-color: #1a73e8; color: white;}
-    .stMetric>div {background-color:#e3f2fd; border-radius:10px; padding:10px;}
-    .stTextInput>div>input {border-radius:5px; border:1px solid #1a73e8;}
-    .stDateInput>div>input {border-radius:5px; border:1px solid #1a73e8;}
-    </style>
-    """, unsafe_allow_html=True)
+    st.subheader("Statistiques")
+    st.write(f"Total abonnés : {len(df)}")
+    st.write(f"Abonnements expirés : {len(df[df['Statut']=='Expiré'])}")
 
-    # --- TABLEAU DE BORD ---
-    if choix == "Tableau de Bord":
-        st.title("🏋️ Tableau de Bord Premium")
-        # Statistiques
-        col1, col2, col3 = st.columns(3)
-        col1.metric("Total Abonnés", len(df))
-        col2.metric("Abonnements Actifs", len(df[df['Date_Fin'].dt.date >= aujourdhui.date()]))
-        col3.metric("Expirations (3j)", len(df[df['Date_Fin'].dt.date == dans_3_jours]))
-        st.divider()
+# ===== AJOUT ABONNÉ =====
+elif choix == "Ajouter Abonné":
+    st.title("Ajouter un nouvel abonné")
+    nom = st.text_input("Nom")
+    date_debut = st.date_input("Date de début")
+    duree = st.number_input("Durée (mois)", min_value=1, max_value=24, value=1)
+    whatsapp = st.text_input("WhatsApp")
+    if st.button("Ajouter"):
+        date_fin = calculer_date_fin(pd.Timestamp(date_debut), duree)
+        st.session_state['abonnés'] = pd.concat([st.session_state['abonnés'], pd.DataFrame([{
+            "Nom": nom,
+            "Date début": date_debut,
+            "Durée (mois)": duree,
+            "Date fin": date_fin,
+            "WhatsApp": whatsapp,
+            "Statut": "Actif"
+        }])], ignore_index=True)
+        st.success(f"Abonné {nom} ajouté !")
 
-    # --- FORMULAIRE AJOUT/MODIFICATION/SUPPRESSION ---
-    elif choix == "Ajouter/Modifier Abonnés" and st.session_state.admin_logged:
-        st.image("logo.png", width=100)
-        st.markdown("<h3 style='text-align:center;color:#1a73e8;'>365 GYM & FITNESS</h3>", unsafe_allow_html=True)
-        st.header("📝 Ajouter / Modifier / Supprimer un abonné")
-        with st.form("form_abonne"):
-            nom = st.text_input("Nom")
-            telephone = st.text_input("Téléphone")
-            date_fin = st.date_input("Date de fin d'abonnement")
+# ===== ABONNÉS EXPIRANT =====
+elif choix == "Abonnés expirant":
+    st.title("Abonnements proches de l'expiration")
+    df = st.session_state['abonnés']
+    exp_3_jours = df[df["Date fin"] <= (pd.Timestamp(datetime.now()) + timedelta(days=3))]
+    for _, row in exp_3_jours.iterrows():
+        st.write(f"{row['Nom']} - Expire le {row['Date fin'].strftime('%d/%m/%Y')}")
+        if st.button(f"Notifier {row['Nom']}", key=f"notif2_{row['Nom']}"):
+            notifier_whatsapp(row['Nom'])
 
-            st.markdown("### Actions")
-            col1, col2, col3 = st.columns(3)
-            submit_add = col1.form_submit_button("➕ Ajouter")
-            submit_mod = col2.form_submit_button("✏️ Modifier")
-            submit_del = col3.form_submit_button("🗑️ Supprimer")
+# ===== ABONNÉS EXPIRÉS =====
+elif choix == "Abonnés expirés":
+    st.title("Abonnements expirés")
+    df = st.session_state['abonnés']
+    expirés = df[df["Date fin"] < pd.Timestamp(datetime.now())]
+    st.dataframe(expirés)
 
-            if submit_add:
-                st.success(f"✅ Abonné {nom} ajouté !")
-            elif submit_mod:
-                st.info(f"✏️ Abonné {nom} modifié !")
-            elif submit_del:
-                st.warning(f"🗑️ Abonné {nom} supprimé !")
+# ===== FORUM =====
+elif choix == "Forum":
+    st.title("Forum")
+    st.text_area("Écrire un message")
+    st.button("Publier")
 
-    # --- FORMULAIRE NOTIFIER ---
-    elif choix == "Notifier Abonnements" and st.session_state.admin_logged:
-        st.image("logo.png", width=100)
-        st.markdown("<h3 style='text-align:center;color:#1a73e8;'>365 GYM & FITNESS</h3>", unsafe_allow_html=True)
-        st.header("📣 Notifications WhatsApp pour abonnements proches de l'expiration")
-        expirant_bientot = df[df['Date_Fin'].dt.date == dans_3_jours]
-        if expirant_bientot.empty:
-            st.info("Aucun abonnement n'expire dans 3 jours.")
-        else:
-            for index, row in expirant_bientot.iterrows():
-                st.write(f"⚠️ {row['Nom']} - {row['Date_Fin'].date()}")
-                message_auto = f"Salut {row['Nom']}, ton abonnement finit le {row['Date_Fin'].date()}."
-                lien_wa = f"https://wa.me{row['Téléphone']}?text={message_auto}"
-                st.markdown(f"[📱 Notifier via WhatsApp]({lien_wa})")
+# ===== GALERIE =====
+elif choix == "Galerie":
+    st.title("Galerie")
+    st.file_uploader("Ajouter une photo ou vidéo", type=["png","jpg","mp4"])
 
-    # --- FORMULAIRE ABONNÉS EXPIRÉS ---
-    elif choix == "Abonnés Expirés" and st.session_state.admin_logged:
-        st.image("logo.png", width=100)
-        st.markdown("<h3 style='text-align:center;color:#1a73e8;'>365 GYM & FITNESS</h3>", unsafe_allow_html=True)
-        st.header("❌ Liste des abonnés expirés")
-        expirés = df[df['Date_Fin'].dt.date < aujourdhui.date()]
-        if expirés.empty:
-            st.info("Aucun abonné n'a dépassé la date d'expiration.")
-        else:
-            st.dataframe(expirés)
-
-    # --- FORUM, GALERIE, CONTACT ---
-    elif choix == "Forum":
-        st.header("💬 Forum de discussion (Public)")
-    elif choix == "Galerie":
-        st.header("📸 Galerie vidéos/photos (Public)")
-    elif choix == "Contact WhatsApp":
-        st.header("📱 Contact Direct (Public)")
+# ===== CONTACT =====
+elif choix == "Contact":
+    st.title("Contact")
+    st.write("Contacter via WhatsApp : +243XXXXXXXXX")
