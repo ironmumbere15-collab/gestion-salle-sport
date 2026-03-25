@@ -2,11 +2,16 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
 from PIL import Image
+from supabase import create_client
 
 # ===== CONFIGURATION =====
 st.set_page_config(page_title="365 GYM & FITNESS", layout="wide", page_icon="💪")
-
 ADMIN_PASSWORD = "1980"
+
+# ===== SUPABASE =====
+SUPABASE_URL = "https://xxxxxx.supabase.co"  # Remplace par ton URL Supabase
+SUPABASE_KEY = "xxxxxxxxxxxxxxxx"           # Remplace par ta clé API Supabase
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # ===== SESSION STATE =====
 if 'admin' not in st.session_state:
@@ -22,7 +27,34 @@ def calculer_date_fin(date_debut, duree):
     return date_debut + pd.DateOffset(months=duree)
 
 def notifier_whatsapp(nom):
-    st.success(f"Message WhatsApp envoyé à {nom} (simulé)")
+    # Ici on pourra brancher Twilio plus tard
+    st.success(f"Message WhatsApp envoyé à {nom} (simulation)")
+
+def sync_abonnes_to_supabase():
+    df = st.session_state['abonnés']
+    for _, row in df.iterrows():
+        supabase.table("abonnes").upsert({
+            "nom": row["Nom"],
+            "date_debut": row["Date début"].strftime("%Y-%m-%d"),
+            "duree_mois": row["Durée (mois)"],
+            "date_fin": row["Date fin"].strftime("%Y-%m-%d"),
+            "whatsapp": row["WhatsApp"],
+            "statut": row["Statut"]
+        }, on_conflict="whatsapp").execute()
+    st.success("✅ Base de données Supabase mise à jour !")
+
+def charger_abonnes_depuis_supabase():
+    response = supabase.table("abonnes").select("*").execute()
+    data = response.data
+    if data:
+        df = pd.DataFrame(data)
+        df["Date début"] = pd.to_datetime(df["date_debut"])
+        df["Date fin"] = pd.to_datetime(df["date_fin"])
+        df["Durée (mois)"] = df["duree_mois"]
+        df["WhatsApp"] = df["whatsapp"]
+        df["Statut"] = df["statut"]
+        df["Nom"] = df["nom"]
+        st.session_state['abonnés'] = df[["Nom","Date début","Durée (mois)","Date fin","WhatsApp","Statut"]]
 
 def embellir_formulaire():
     st.markdown("""
@@ -33,6 +65,9 @@ def embellir_formulaire():
     .stDataFrame table {border-radius:10px; overflow:hidden;}
     </style>
     """, unsafe_allow_html=True)
+
+# Charger automatiquement les abonnés depuis Supabase
+charger_abonnes_depuis_supabase()
 
 # ===== LOGIN ADMIN =====
 st.sidebar.image("logo.png", width=120)
@@ -83,6 +118,10 @@ if st.session_state.get('admin', False):
         st.subheader("Statistiques")
         st.markdown(f"🏋️ Total abonnés : **{len(df)}**")
         st.markdown(f"⏳ Abonnements expirés : **{len(df[df['Statut']=='Expiré'])}**")
+
+        # Bouton pour synchroniser avec Supabase
+        if st.button("💾 Synchroniser avec Supabase"):
+            sync_abonnes_to_supabase()
 
     elif choix == "Ajouter Abonné":
         st.title("➕ Ajouter un nouvel abonné")
