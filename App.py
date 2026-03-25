@@ -10,7 +10,7 @@ col_logo, col_titre = st.columns([1, 4])
 with col_logo:
     # On utilise un bloc "try" pour éviter que l'app plante si l'image manque
     try:
-        st.image("logo_365.jpg", width=150)
+        st.image("logo.png", width=150)
     except:
         st.warning("Logo non trouvé")
 
