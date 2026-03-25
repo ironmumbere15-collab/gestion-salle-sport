@@ -1,9 +1,16 @@
 import streamlit as st
-import pandas as pd
-from datetime import datetime, timedelta
 
-# --- CONFIGURATION ---
-st.set_page_config(page_title="Admin Salle de Sport", layout="wide")
+# --- CONFIGURATION DE LA PAGE ---
+st.set_page_config(page_title="365 Gym & Fitness", page_icon="🏋️", layout="wide")
+
+# --- AFFICHAGE DU LOGO ET TITRE ---
+col_logo, col_titre = st.columns([1, 4])
+with col_logo:
+    # Utilise l'URL de ton image GitHub ici
+    st.image("logo_365.jpg", width=150) 
+with col_titre:
+    st.title("365 GYM & FITNESS")
+    st.subheader("Système de Gestion Intégré")
 
 # Simulation de données (En attendant ta connexion Supabase complète)
 data = {
