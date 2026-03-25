@@ -2,186 +2,85 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
 
-# ==============================
-# 1. CONFIGURATION
-# ==============================
-st.set_page_config(page_title="365 Gym & Fitness", page_icon="🏋️", layout="wide")
+# --- Logo en haut de la barre latérale ---
+st.sidebar.image("https://via.placeholder.com/200x80.png?text=Logo+Salle+de+Sport", width=200)
 
-# ==============================
-# 2. CHARGEMENT / SAUVEGARDE
-# ==============================
-def load_data():
-    try:
-        df = pd.read_csv("abonnes.csv")
-        df['Date_Fin'] = pd.to_datetime(df['Date_Fin'])
-    except:
-        data = {
-            'Nom': ['Jean Dupont', 'Marie Martin', 'Isaac Kabuya', 'Sarah Luvumbu'],
-            'Téléphone': ['+24381000000', '+24399000000', '+24382000000', '+24385000000'],
-            'Date_Fin': ['2026-03-28', '2026-04-15', '2026-03-28', '2026-05-01'],
-            'Type': ['Mensuel', 'Trimestriel', 'Mensuel', 'Annuel']
-        }
-        df = pd.DataFrame(data)
-        df['Date_Fin'] = pd.to_datetime(df['Date_Fin'])
-    return df
-
-def save_data(df):
-    df.to_csv("abonnes.csv", index=False)
-
-df = load_data()
-
-# ==============================
-# 3. HEADER
-# ==============================
-col_logo, col_titre = st.columns([1, 4])
-with col_logo:
-    try:
-        st.image("logo_365.jpg", width=120)
-    except:
-        pass
-
-with col_titre:
-    st.title("365 GYM & FITNESS")
-    st.subheader("Tableau de Bord de Gestion")
-
-st.divider()
-
-# ==============================
-# 4. MENU (3 POINTS)
-# ==============================
-menu = st.selectbox(
-    "⋮ Navigation",
-    ["📋 Liste des abonnés", "➕ Gestion des abonnés", "📊 Rapport mensuel"]
+# --- Menu latéral ---
+section = st.sidebar.radio(
+    "Navigation",
+    ["Tableau de Bord", "Abonnés", "Abonnés Expirés", "Ajouter Abonné", "Forum", "Contact", "Photos/Vidéos"]
 )
 
-# ==============================
-# 5. STATISTIQUES
-# ==============================
-today = datetime.now()
-actifs = df[df['Date_Fin'] >= today]
+# --- Données simulées abonnés ---
+data = {
+    'Nom': ['Jean Dupont', 'Marie Martin', 'Isaac Kabuya', 'Sarah Luvumbu'],
+    'Téléphone': ['+24381000000', '+24399000000', '+24382000000', '+24385000000'],
+    'Date_Fin': ['2024-05-28', '2024-06-15', '2024-05-28', '2024-07-01'],
+    'Type': ['Mensuel', 'Trimestriel', 'Mensuel', 'Annuel']
+}
+df = pd.DataFrame(data)
+df['Date_Fin'] = pd.to_datetime(df['Date_Fin'])
 
-expire_3j = df[
-    (df['Date_Fin'] >= today) &
-    (df['Date_Fin'] <= today + timedelta(days=3))
-]
+# --- Dates importantes ---
+aujourdhui = datetime.now().date()
+dans_3_jours = aujourdhui + timedelta(days=3)
 
-col1, col2, col3 = st.columns(3)
-col1.metric("Total Abonnés", len(df))
-col2.metric("Actifs", len(actifs))
-col3.metric("Expirent (3 jours)", len(expire_3j))
+# --- Sections ---
+if section == "Tableau de Bord":
+    st.title("🏋️ Tableau de Bord de la Salle de Sport")
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Total Abonnés", len(df))
+    col2.metric("Abonnements Actifs", len(df[df['Date_Fin'].dt.date >= aujourdhui]))
+    col3.metric("Expirations (3j)", len(df[df['Date_Fin'].dt.date == dans_3_jours]))
 
-st.divider()
+elif section == "Abonnés":
+    st.subheader("⚠️ Abonnés expirant dans 3 jours")
+    expirant_bientot = df[df['Date_Fin'].dt.date == dans_3_jours]
+    if not expirant_bientot.empty:
+        st.dataframe(expirant_bientot)
+        if st.button("📣 Notifier les abonnés expirant bientôt"):
+            for idx, user in expirant_bientot.iterrows():
+                message = f"Bonjour {user['Nom']}, votre abonnement se termine le {user['Date_Fin'].date()}. Merci de le renouveler !"
+                st.success(f"Notification prête pour {user['Nom']} ({user['Téléphone']}): {message}")
+    else:
+        st.info("Aucun abonné n'expire dans 3 jours.")
 
-# ==============================
-# 📋 LISTE DES ABONNÉS
-# ==============================
-if menu == "📋 Liste des abonnés":
+elif section == "Abonnés Expirés":
+    st.subheader("⛔ Abonnés expirés")
+    expirés = df[df['Date_Fin'].dt.date < aujourdhui]
+    if not expirés.empty:
+        st.dataframe(expirés)
+    else:
+        st.info("Aucun abonné expiré pour le moment.")
 
-    st.subheader("📋 Liste complète")
+elif section == "Ajouter Abonné":
+    st.subheader("➕ Ajouter un nouvel abonnement")
+    with st.form("form_nouvel_abonne"):
+        nom = st.text_input("Nom complet")
+        telephone = st.text_input("Téléphone")
+        date_fin = st.date_input("Date de fin d'abonnement")
+        type_abonnement = st.selectbox("Type d'abonnement", ["Mensuel", "Trimestriel", "Annuel"])
+        
+        st.write("Actions :")
+        c1, c2, c3 = st.columns(3)
+        ajouter = c1.form_submit_button("Ajouter")
+        modifier = c2.form_submit_button("Modifier")
+        supprimer = c3.form_submit_button("Supprimer")
+        if ajouter:
+            st.success(f"Abonné {nom} ajouté !")
+        if modifier:
+            st.warning(f"Abonné {nom} modifié !")
+        if supprimer:
+            st.error(f"Abonné {nom} supprimé !")
 
-    recherche = st.text_input("🔍 Rechercher un nom")
+elif section == "Forum":
+    st.subheader("💬 Forum de discussion")
+    st.info("Ici tu pourras poster et lire les messages des abonnés (fonctionnalité à connecter).")
 
-    df_filtre = df.copy()
-    if recherche:
-        df_filtre = df_filtre[df_filtre['Nom'].str.contains(recherche, case=False)]
+elif section == "Contact":
+    st.subheader("📱 Contact WhatsApp")
+    st.info("Lien direct vers ton numéro WhatsApp : [Clique ici](https://wa.me/24381000000)")
 
-    st.dataframe(df_filtre, use_container_width=True)
-
-    st.download_button(
-        "📥 Télécharger",
-        df_filtre.to_csv(index=False),
-        "liste_abonnes.csv"
-    )
-
-# ==============================
-# ➕ GESTION (CRUD)
-# ==============================
-elif menu == "➕ Gestion des abonnés":
-
-    action = st.radio("Choisir une action", ["Ajouter", "Modifier", "Supprimer"])
-
-    # -------- AJOUTER --------
-    if action == "Ajouter":
-        st.subheader("➕ Ajouter un abonné")
-
-        with st.form("add_form"):
-            nom = st.text_input("Nom")
-            tel = st.text_input("Téléphone")
-            date_fin = st.date_input("Date de fin")
-            type_ab = st.selectbox("Type", ["Mensuel", "Trimestriel", "Annuel"])
-
-            submit = st.form_submit_button("Ajouter")
-
-            if submit:
-                new_row = pd.DataFrame([{
-                    "Nom": nom,
-                    "Téléphone": tel,
-                    "Date_Fin": pd.to_datetime(date_fin),
-                    "Type": type_ab
-                }])
-                df = pd.concat([df, new_row], ignore_index=True)
-                save_data(df)
-                st.success("✅ Abonné ajouté avec succès")
-
-    # -------- MODIFIER --------
-    elif action == "Modifier":
-        st.subheader("✏️ Modifier un abonné")
-
-        nom_select = st.selectbox("Choisir un abonné", df['Nom'])
-
-        data_select = df[df['Nom'] == nom_select].iloc[0]
-
-        with st.form("edit_form"):
-            new_nom = st.text_input("Nom", data_select['Nom'])
-            new_tel = st.text_input("Téléphone", data_select['Téléphone'])
-            new_date = st.date_input("Date fin", data_select['Date_Fin'])
-            new_type = st.selectbox("Type", ["Mensuel", "Trimestriel", "Annuel"])
-
-            submit = st.form_submit_button("Modifier")
-
-            if submit:
-                df.loc[df['Nom'] == nom_select, :] = [
-                    new_nom, new_tel, pd.to_datetime(new_date), new_type
-                ]
-                save_data(df)
-                st.success("✅ Modification réussie")
-
-    # -------- SUPPRIMER --------
-    elif action == "Supprimer":
-        st.subheader("🗑️ Supprimer un abonné")
-
-        nom_suppr = st.selectbox("Choisir à supprimer", df['Nom'])
-
-        if st.button("Supprimer"):
-            df = df[df['Nom'] != nom_suppr]
-            save_data(df)
-            st.warning("❌ Abonné supprimé")
-
-# ==============================
-# 📊 RAPPORT MENSUEL
-# ==============================
-elif menu == "📊 Rapport mensuel":
-
-    st.subheader("📊 Rapport par mois")
-
-    mois_dict = {
-        "Janvier": 1, "Février": 2, "Mars": 3, "Avril": 4,
-        "Mai": 5, "Juin": 6, "Juillet": 7, "Août": 8,
-        "Septembre": 9, "Octobre": 10, "Novembre": 11, "Décembre": 12
-    }
-
-    mois = st.selectbox("Choisir le mois", list(mois_dict.keys()))
-
-    mois_num = mois_dict[mois]
-
-    rapport = df[df['Date_Fin'].dt.month == mois_num]
-
-    st.dataframe(rapport, use_container_width=True)
-
-    st.download_button(
-        "📥 Télécharger rapport",
-        rapport.to_csv(index=False),
-        f"rapport_{mois}.csv"
-    )
-
-    st.info(f"Nombre d'abonnés pour {mois} : {len(rapport)}")
+elif section == "Photos/Vidéos":
+    st.subheader("📸 Galerie")
+    st.info("Ici tu pourras poster tes photos et vidéos de la salle de sport.")
