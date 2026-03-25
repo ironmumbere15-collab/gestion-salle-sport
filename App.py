@@ -3,7 +3,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 
 # --- Logo en haut de la barre latérale ---
-st.sidebar.image("https://via.placeholder.com/200x80.png?text=Logo+Salle+de+Sport", width=200)
+st.sidebar.image("logo.png", width=200)
 
 # --- Menu latéral ---
 section = st.sidebar.radio(
