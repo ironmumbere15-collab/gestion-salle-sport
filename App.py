@@ -140,4 +140,4 @@ elif choix == "Galerie":
 
 elif choix == "Contact":
     st.title("📞 Contact")
-    st.write("Contacter via WhatsApp : +243XXXXXXXXX")
+    st.write("Contacter via WhatsApp : +243 994 659 086")
