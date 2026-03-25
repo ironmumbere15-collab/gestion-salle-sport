@@ -1,22 +1,17 @@
-import sqlite3
+from supabase import create_client
 from datetime import datetime, timedelta
+import os
 
-# Connexion à la base
-conn = sqlite3.connect('membres.db')
-cursor = conn.cursor()
+url = os.environ.get("SUPABASE_URL")
+key = os.environ.get("SUPABASE_KEY")
 
-# On cherche les abonnements qui expirent dans les 5 prochains jours
-seuil = (datetime.now() + timedelta(days=5)).strftime('%Y-%m-%d')
+supabase = create_client(url, key)
 
-cursor.execute("SELECT nom, email, date_fin FROM abonnes WHERE date_fin <= ?", (seuil,))
-expirations = cursor.fetchall()
+today = datetime.now().date()
+target = today + timedelta(days=3)
 
-if expirations:
-    print(f"Alerte : {len(expirations)} abonnements se terminent bientôt !")
-    for nom, email, date in expirations:
-        print(f"Notifier {nom} ({email}) - Fin le {date}")
-        # Ici on ajoutera plus tard l'envoi d'email réel
-else:
-    print("Tout est à jour, aucune notification à envoyer.")
+data = supabase.table("abonnes").select("*").execute().data
 
-conn.close()
+for user in data:
+    if str(user["date_fin"]) == str(target):
+        print(f"{user['nom']} doit être notifié")
