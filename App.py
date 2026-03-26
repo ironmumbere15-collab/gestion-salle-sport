@@ -175,7 +175,8 @@ elif page == "🔐 Gestion Admin":
                                 num_final = num_raw
                                 
                             msg = f"Bonjour {row[c_nom]} ! 👋\nC'est 365 GYM & FITNESS. Votre abonnement se termine le {row[c_fin]}. N'oubliez pas de passer nous voir ! 💪"
-                            wa_url = f"https://wa.me{num_final}?text={urllib.parse.quote(msg)}"
+                            # Format universel recommandé par WhatsApp
+                            wa_url = f"https://wa.me/{num_final}?text={urllib.parse.quote(msg)}"
                             
                             # AFFICHAGE SIMPLE ANTI-BLOCAGE
                             st.write(f"{emoji} **{row[c_nom]}** | {txt} | Fin : {row[c_fin]}")
