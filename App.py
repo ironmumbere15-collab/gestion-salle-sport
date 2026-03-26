@@ -169,7 +169,9 @@ elif page == "🔐 Gestion Admin":
                                 num_final = num_raw
                                 
                             msg = f"Bonjour {row[c_nom]} ! 👋\nC'est 365 GYM & FITNESS. Votre abonnement se termine le {row[c_fin]}. N'oubliez pas de passer nous voir ! 💪"
-                            wa_url = f"https://wa.me{num_final}?text={urllib.parse.quote(msg)}"
+                            # Format universel recommandé par WhatsApp
+                            wa_url = f"https://wa.me/{num_final}?text={urllib.parse.quote(msg)}"
+
                             
                             st.write(f"🔔 **{row[c_nom]}** | Fin : {row[c_fin]}")
                             st.markdown(f"👉 [NOTIFIER {row[c_nom]} SUR WHATSAPP]({wa_url})")
