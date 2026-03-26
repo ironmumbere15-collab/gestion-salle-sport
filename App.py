@@ -5,7 +5,7 @@ from datetime import datetime
 import os
 import urllib.parse
 
-# ================= CONFIG & DESIGN (NOIR & OR - ADVENTURE) =================
+# ================= CONFIG & DESIGN (NOIR & OR) =================
 st.set_page_config(page_title="365 GYM & FITNESS", layout="wide", page_icon="💪")
 
 LOGO_BLACK = "#000000" 
@@ -69,7 +69,7 @@ if 'logged' not in st.session_state: st.session_state['logged'] = False
 if 'edit_item' not in st.session_state: st.session_state['edit_item'] = None
 
 # Navigation haute
-col_logo, col_nav1, col_nav2 = st.columns([1,2,2])
+col_logo, col_nav1, col_nav2 = st.columns()
 with col_logo: afficher_logo(120)
 with col_nav1: 
     if st.button("📢 ACCUEIL / PUBLICITÉ"): st.session_state['page'] = "📢 Page Publicité"; st.rerun()
@@ -122,7 +122,6 @@ elif page == "🔐 Gestion Admin":
     else:
         tab1, tab2, tab3, tab4, tab5 = st.tabs(["📝 Inscriptions","📊 Liste","📣 Publier","⏳ J-3","❌ EXPIRÉS"])
 
-        # --- TAB 1 : FORMULAIRE (AVEC MODIF) ---
         with tab1:
             st.subheader("📝 Gérer les Membres")
             edit = st.session_state.edit_item
@@ -143,12 +142,11 @@ elif page == "🔐 Gestion Admin":
                     st.success("✅ Enregistré !")
                     st.rerun()
 
-        # --- TAB 2 : LISTE AVEC BOUTONS ---
         with tab2:
             df = charger_depuis_supabase()
             if not df.empty:
                 for i, r in df.iterrows():
-                    c1, c2, c3, c4 = st.columns([3,3,1,1])
+                    c1, c2, c3, c4 = st.columns()
                     c1.write(f"👤 {r['nom']}")
                     c2.write(f"📅 Fin: {r['date_fin']}")
                     if c3.button("✏️", key=f"e{i}"):
@@ -158,26 +156,26 @@ elif page == "🔐 Gestion Admin":
                         supabase.table("abonnes").delete().eq("WhatsApp", r['WhatsApp']).execute()
                         st.rerun()
 
-        # --- TAB 3 : PUBLIER (CORRECTION ROBUSTE URL) ---
         with tab3:
             t_pub = st.selectbox("Type", ["Photo","Vidéo","Message"])
-            fichier = st.file_uploader("Média", type=["png","jpg","jpeg","mp4"])
-            with st.form("pub_form", clear_on_submit=True):
-                txt = st.text_area("Légende")
+            fichier = st.file_uploader("Choisir un média", type=["png","jpg","jpeg","mp4"])
+            if fichier:
+                if t_pub=="Photo": st.image(fichier, width=300)
+                if t_pub=="Vidéo": st.video(fichier)
+            with st.form("form_pub_final", clear_on_submit=True):
+                legende_txt = st.text_area("Légende")
                 if st.form_submit_button("📢 PUBLIER"):
-                    url_f = ""
                     if fichier:
-                        fname = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{fichier.name}"
-                        supabase.storage.from_("medias").upload(fname, fichier.getvalue())
-                        # Correction de l'erreur AttributeError ici :
-                        res_url = supabase.storage.from_("medias").get_public_url(fname)
-                        url_f = res_url if isinstance(res_url, str) else res_url.public_url
-                    
-                    supabase.table("publicite").insert({"type":t_pub,"url_media":url_f,"legende":txt}).execute()
-                    st.success("✅ Publiée !")
+                        nom_f = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{fichier.name}"
+                        supabase.storage.from_("medias").upload(nom_f,fichier.getvalue())
+                        res_url = supabase.storage.from_("medias").get_public_url(nom_f)
+                        url_final = res_url if isinstance(res_url,str) else res_url.public_url
+                        supabase.table("publicite").insert({"type":t_pub,"url_media":url_final,"legende":legende_txt}).execute()
+                    else:
+                        supabase.table("publicite").insert({"type":"Message","url_media":"","legende":legende_txt}).execute()
+                    st.success("✅ Publication réussie !")
                     st.rerun()
 
-        # --- TAB 4 : J-3 ---
         with tab4:
             df_s = charger_depuis_supabase()
             if not df_s.empty:
@@ -190,15 +188,11 @@ elif page == "🔐 Gestion Admin":
                     msg = f"Bonjour {r['nom']} ! 👋 Votre abonnement 365 GYM se termine le {r['date_fin']}."
                     st.markdown(f"🔔 **{r['nom']}** | [Envoyer WhatsApp](https://wa.me{num_final}?text={urllib.parse.quote(msg)})")
 
-        # --- TAB 5 : EXPIRÉS ---
         with tab5:
             st.subheader("❌ Abonnements Expirés")
             df_e = charger_depuis_supabase()
             if not df_e.empty:
                 df_e['date_fin_dt'] = pd.to_datetime(df_e['date_fin'])
                 exp = df_e[df_e['date_fin_dt'] < pd.Timestamp(datetime.now().date())]
-                if not exp.empty:
-                    for _, r in exp.iterrows():
-                        st.markdown(f"<div style='color:red; font-weight:bold; border:1px solid red; padding:10px; margin-bottom:5px; background:rgba(255,0,0,0.1);'>❌ {r['nom']} - Expiré le {r['date_fin']}</div>", unsafe_allow_html=True)
-                else:
-                    st.success("Personne n'est expiré ! 🎉")
+                for _, r in exp.iterrows():
+                    st.markdown(f"<div style='color:red; font-weight:bold; border:1px solid red; padding:10px; margin-bottom:5px; background:rgba(255,0,0,0.1);'>❌ {r['nom']} - Expiré le {r['date_fin']}</div>", unsafe_allow_html=True)
