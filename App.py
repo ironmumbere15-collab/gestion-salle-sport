@@ -44,7 +44,7 @@ def charger_publicites():
 st.sidebar.title("🧭 Menu")
 page = st.sidebar.radio("Navigation", ["📢 Page Publicité", "🔐 Gestion Admin"])
 
-# --- PAGE 1 : PUBLICITÉ (VISIBLE PAR TOUS) ---
+# --- PAGE 1 : PUBLICITÉ ---
 if page == "📢 Page Publicité":
     afficher_logo(300)
     st.title("Bienvenue chez 365 GYM & FITNESS")
@@ -62,9 +62,9 @@ if page == "📢 Page Publicité":
                 else:
                     st.subheader(post['legende'])
     else:
-        st.info("### 🔥 Nos Offres Exceptionnelles\n- **1 Mois** : 300 DH\n- **12 Mois** : 2500 DH")
+        st.info("### 🔥 Nos Offres\n- **1 Mois** : 300 DH\n- **12 Mois** : 2500 DH")
 
-# --- PAGE 2 : GESTION ADMIN (MOT DE PASSE 1980) ---
+# --- PAGE 2 : GESTION ADMIN ---
 elif page == "🔐 Gestion Admin":
     pwd = st.sidebar.text_input("🔑 Code d'accès", type="password")
     
@@ -75,79 +75,52 @@ elif page == "🔐 Gestion Admin":
         tab1, tab2, tab3, tab4 = st.tabs(["📝 Inscriptions", "📊 Liste Membres", "📣 Publier News", "⏳ Expirations J-3"])
         
         with tab1:
-                    with tab1:
             st.subheader("📝 Modifier ou Ajouter un Membre")
-            
-            # 1. On charge la liste actuelle pour la sélection
             df_selec = charger_depuis_supabase()
             
-            # 2. Barre de recherche pour choisir un membre existant
+            # Sélection pour pré-remplir
             liste_noms = ["--- NOUVEL ABONNÉ ---"] + df_selec["nom"].tolist()
             choix = st.selectbox("Rechercher un membre pour modifier/supprimer :", liste_noms)
             
-            # Initialisation des variables par défaut
-            val_nom = ""
-            val_wa = ""
-            val_statut = "Actif"
-            val_duree = 1
+            v_nom, v_wa, v_statut, v_duree = "", "", "Actif", 1
             
-            # Si un membre est choisi, on pré-remplit les champs
             if choix != "--- NOUVEL ABONNÉ ---":
                 ligne = df_selec[df_selec["nom"] == choix].iloc[0]
-                val_nom = ligne["nom"]
-                val_wa = ligne["WhatsApp"]
-                val_statut = ligne["statut"]
-                val_duree = int(ligne["duree_mois"])
+                v_nom, v_wa, v_statut, v_duree = ligne["nom"], ligne["WhatsApp"], ligne["statut"], int(ligne["duree_mois"])
 
-            # 3. LE FORMULAIRE
             with st.form("form_gestion", clear_on_submit=True):
                 col1, col2 = st.columns(2)
                 with col1:
-                    nom = st.text_input("Nom de l'abonné", value=val_nom)
-                    whatsapp_val = st.text_input("WhatsApp (Identifiant unique)", value=val_wa)
-                    statut_opt = st.selectbox("Statut", ["Actif", "Inactif"], index=0 if val_statut == "Actif" else 1)
+                    nom = st.text_input("Nom de l'abonné", value=v_nom)
+                    whatsapp_val = st.text_input("WhatsApp (Identifiant unique)", value=v_wa)
+                    statut_opt = st.selectbox("Statut", ["Actif", "Inactif"], index=0 if v_statut == "Actif" else 1)
                 with col2:
                     date_debut = st.date_input("Date début", datetime.now())
-                    duree = st.number_input("Durée (mois)", min_value=1, value=val_duree)
+                    duree = st.number_input("Durée (mois)", min_value=1, value=v_duree)
                 
                 date_fin_calc = date_debut + pd.DateOffset(months=duree)
                 st.write(f"Fin prévue : **{date_fin_calc.strftime('%d/%m/%Y')}**")
 
                 col_b1, col_b2, col_b3 = st.columns(3)
-                
-                data_package = {
-                    "nom": nom,
-                    "date_debut": date_debut.strftime("%Y-%m-%d"),
-                    "duree_mois": int(duree),
-                    "date_fin": date_fin_calc.strftime("%Y-%m-%d"),
-                    "WhatsApp": whatsapp_val,
-                    "statut": statut_opt
-                }
+                data_package = {"nom": nom, "date_debut": date_debut.strftime("%Y-%m-%d"), "duree_mois": int(duree), "date_fin": date_fin_calc.strftime("%Y-%m-%d"), "WhatsApp": whatsapp_val, "statut": statut_opt}
 
-                # BOUTON AJOUTER / MODIFIER (C'est la même logique upsert)
                 if col_b1.form_submit_button("➕ ENREGISTRER"):
                     if nom and whatsapp_val:
                         supabase.table("abonnes").upsert(data_package, on_conflict="WhatsApp").execute()
-                        st.success(f"✅ Enregistré : {nom}")
+                        st.success(f"Enregistré : {nom}")
                         st.rerun()
-                    else:
-                        st.error("Le nom et le WhatsApp sont obligatoires.")
 
-                # BOUTON MODIFIER (Pour la clarté visuelle)
                 if col_b2.form_submit_button("🔄 MODIFIER"):
                     if whatsapp_val:
                         supabase.table("abonnes").upsert(data_package, on_conflict="WhatsApp").execute()
-                        st.success(f"✅ Mis à jour : {nom}")
+                        st.success(f"Mis à jour : {nom}")
                         st.rerun()
 
-                # BOUTON SUPPRIMER (Celui-ci doit vraiment effacer dans Supabase)
                 if col_b3.form_submit_button("🗑️ SUPPRIMER"):
                     if whatsapp_val:
                         supabase.table("abonnes").delete().eq("WhatsApp", whatsapp_val).execute()
-                        st.warning(f"🗑️ {nom} a été supprimé de la base de données.")
+                        st.warning(f"Supprimé : {nom}")
                         st.rerun()
-                    else:
-                        st.error("Sélectionnez un membre ou tapez son WhatsApp pour supprimer.")
 
         with tab2:
             st.subheader("Base de données complète")
@@ -155,12 +128,11 @@ elif page == "🔐 Gestion Admin":
             st.dataframe(df_view, use_container_width=True)
 
         with tab3:
-            st.subheader("🚀 Publier un Média (Galerie)")
+            st.subheader("🚀 Publier un Média")
             with st.form("form_pub", clear_on_submit=True):
                 t_pub = st.selectbox("Type", ["Photo", "Vidéo", "Message"])
                 fichier = st.file_uploader("Choisir un fichier", type=["png", "jpg", "jpeg", "mp4"])
                 m_pub = st.text_area("Légende")
-                
                 if st.form_submit_button("📢 Publier"):
                     if fichier:
                         nom_f = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{fichier.name}"
@@ -182,35 +154,20 @@ elif page == "🔐 Gestion Admin":
                 c_fin = next((c for c in df_suivi.columns if c.lower() in ['date_fin', 'date fin']), None)
                 c_wa = next((c for c in df_suivi.columns if c.lower() == 'whatsapp'), None)
                 c_nom = next((c for c in df_suivi.columns if c.lower() == 'nom'), None)
-
                 if c_statut and c_fin:
-                    aujourdhui = pd.Timestamp(datetime.now().date())
+                    auj = pd.Timestamp(datetime.now().date())
                     df_suivi['date_fin_dt'] = pd.to_datetime(df_suivi[c_fin])
-                    df_suivi['restant'] = (df_suivi['date_fin_dt'] - aujourdhui).dt.days
-                    
+                    df_suivi['restant'] = (df_suivi['date_fin_dt'] - auj).dt.days
                     alerte_df = df_suivi[(df_suivi['restant'] <= 3) & (df_suivi[c_statut].astype(str).str.lower() == 'actif')]
-                    
                     if not alerte_df.empty:
                         for _, row in alerte_df.iterrows():
-                            # LOGIQUE RDC (243)
                             num_raw = "".join(filter(str.isdigit, str(row[c_wa])))
-                            if num_raw.startswith("0"):
-                                num_final = "243" + num_raw[1:]
-                            elif not num_raw.startswith("243"):
-                                num_final = "243" + num_raw
-                            else:
-                                num_final = num_raw
-                                
-                            msg = f"Bonjour {row[c_nom]} ! 👋\nC'est 365 GYM & FITNESS. Votre abonnement se termine le {row[c_fin]}. N'oubliez pas de passer nous voir ! 💪"
-                            # Format universel recommandé par WhatsApp
-                            wa_url = f"https://wa.me/{num_final}?text={urllib.parse.quote(msg)}"
-
-                            
+                            num_final = "243" + (num_raw[1:] if num_raw.startswith("0") else num_raw if num_raw.startswith("243") else num_raw)
+                            msg = f"Bonjour {row[c_nom]} ! 👋\nC'est 365 GYM & FITNESS. Votre abonnement se termine le {row[c_fin]}."
+                            wa_url = f"https://wa.me{num_final}?text={urllib.parse.quote(msg)}"
                             st.write(f"🔔 **{row[c_nom]}** | Fin : {row[c_fin]}")
-                            st.markdown(f"👉 [NOTIFIER {row[c_nom]} SUR WHATSAPP]({wa_url})")
+                            st.markdown(f"👉 [NOTIFIER SUR WHATSAPP]({wa_url})")
                             st.divider()
-                    else:
-                        st.success("✅ Aucun abonnement n'expire bientôt.")
             else:
                 st.info("La liste est vide.")
 
