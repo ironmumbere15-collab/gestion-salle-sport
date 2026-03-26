@@ -5,37 +5,29 @@ from datetime import datetime
 import os
 import urllib.parse
 
-# =========================
 # 1. CONNEXION SUPABASE
-# =========================
 try:
     url = st.secrets["SUPABASE_URL"]
     key = st.secrets["SUPABASE_KEY"]
     supabase: Client = create_client(url, key)
-except:
-    st.error("🚨 Supabase non configuré !")
+except Exception as e:
+    st.error("🚨 Configuration Supabase manquante dans les Secrets !")
     st.stop()
 
-# =========================
-# 2. CONFIG PAGE
-# =========================
+# 2. CONFIGURATION DE LA PAGE
 st.set_page_config(page_title="365 GYM & FITNESS", layout="wide", page_icon="💪")
 
-# =========================
-# 🎨 DESIGN (STYLE IMAGE)
-# =========================
+# 🎨 DESIGN (comme ton image)
 st.markdown("""
 <style>
 .stApp {
     background-color: #0b1c2c;
     color: white;
 }
-
 section[data-testid="stSidebar"] {
     background-color: #06121d;
-    width: 250px !important;
+    width: 260px !important;
 }
-
 .stButton>button {
     width: 100%;
     background-color: transparent;
@@ -45,97 +37,85 @@ section[data-testid="stSidebar"] {
     padding: 15px;
     font-size: 16px;
 }
-
 .stButton>button:hover {
     background-color: #f1c40f;
     color: black;
 }
-
-h1, h2, h3 {
-    color: #f1c40f;
-}
-
 .block-container {
     background-color: #0f2538;
     padding: 2rem;
     border-radius: 10px;
 }
+h1, h2, h3 {
+    color: #f1c40f;
+}
 </style>
 """, unsafe_allow_html=True)
 
-# =========================
-# LOGO
-# =========================
+# 3. LOGO
 logo_path = "logo.png"
 
-def afficher_logo(w=200):
+def afficher_logo(largeur=200):
     if os.path.exists(logo_path):
-        st.image(logo_path, width=w)
+        st.image(logo_path, width=largeur)
     else:
-        st.title("🏋️ 365 GYM & FITNESS")
+        st.info("🏋️ 365 GYM & FITNESS")
 
-# =========================
-# DATA
-# =========================
+# 4. DATA
 def charger_depuis_supabase():
     try:
-        r = supabase.table("abonnes").select("*").execute()
-        return pd.DataFrame(r.data) if r.data else pd.DataFrame(columns=["nom","date_debut","duree_mois","date_fin","WhatsApp","statut"])
+        response = supabase.table("abonnes").select("*").execute()
+        return pd.DataFrame(response.data) if response.data else pd.DataFrame(columns=["nom", "date_debut", "duree_mois", "date_fin", "WhatsApp", "statut"])
     except:
-        return pd.DataFrame(columns=["nom","date_debut","duree_mois","date_fin","WhatsApp","statut"])
+        return pd.DataFrame(columns=["nom", "date_debut", "duree_mois", "date_fin", "WhatsApp", "statut"])
 
 def charger_publicites():
     try:
-        r = supabase.table("publicite").select("*").order("id", desc=True).execute()
-        return r.data if r.data else []
+        response = supabase.table("publicite").select("*").order("id", desc=True).execute()
+        return response.data if response.data else []
     except:
         return []
 
-# =========================
-# NAVIGATION
-# =========================
-if "page" not in st.session_state:
-    st.session_state.page = "📢 Page Publicité"
+# 5. NAVIGATION
+if 'page' not in st.session_state:
+    st.session_state['page'] = "📢 Page Publicité"
 
-st.sidebar.title("💎 MENU")
+st.sidebar.title("💎 365 GYM MENU")
 
-if st.sidebar.button("HOME"):
-    st.session_state.page = "📢 Page Publicité"
+if st.sidebar.button("📢 PAGE PUBLICITÉ", use_container_width=True):
+    st.session_state['page'] = "📢 Page Publicité"
     st.rerun()
 
-if st.sidebar.button("ADMIN"):
-    st.session_state.page = "🔐 Gestion Admin"
+if st.sidebar.button("🔐 GESTION ADMIN", use_container_width=True):
+    st.session_state['page'] = "🔐 Gestion Admin"
     st.rerun()
 
-page = st.session_state.page
+page = st.session_state['page']
 
-# =========================
-# PAGE PUBLICITÉ
-# =========================
+# --- PAGE 1 : PUBLICITÉ ---
 if page == "📢 Page Publicité":
-    afficher_logo(250)
+    afficher_logo(300)
     st.title("Bienvenue chez 365 GYM & FITNESS")
-
+    
     posts = charger_publicites()
-
     if posts:
-        for p in posts:
-            st.divider()
-            if p["type"] == "Photo":
-                st.image(p["url_media"], caption=p["legende"], use_container_width=True)
-            elif p["type"] == "Vidéo":
-                st.video(p["url_media"])
-                st.caption(p["legende"])
-            else:
-                st.subheader(p["legende"])
+        for post in posts:
+            with st.container():
+                st.divider()
+                if post.get('type') == "Photo" and post.get('url_media'):
+                    st.image(post['url_media'], caption=post.get('legende'), use_container_width=True)
+                elif post.get('type') == "Vidéo" and post.get('url_media'):
+                    st.video(post['url_media'])
+                    st.caption(post.get('legende'))
+                else:
+                    st.subheader(post.get('legende', "Annonce"))
     else:
-        st.info("🔥 Offre : 1 mois = 300 DH")
+        st.info("### 🔥 Nos Offres\n- **1 Mois** : 300 DH\n- **12 Mois** : 2500 DH")
 
-# =========================
-# PAGE ADMIN (LOGIN)
-# =========================
+# --- PAGE 2 : GESTION ADMIN ---
 elif page == "🔐 Gestion Admin":
 
+    # 🔐 LOGIN PRO
     if "logged_in" not in st.session_state:
         st.session_state.logged_in = False
 
@@ -149,143 +129,140 @@ elif page == "🔐 Gestion Admin":
                 st.session_state.logged_in = True
                 st.rerun()
             else:
-                st.error("❌ Mauvais code")
+                st.error("❌ Code incorrect")
 
     else:
-        # ===== ADMIN PANEL =====
         afficher_logo(100)
+        st.header("⚙️ Panneau de Contrôle Admin")
 
         if st.button("🚪 Déconnexion"):
             st.session_state.logged_in = False
             st.rerun()
-
-        st.header("⚙️ ADMIN PANEL")
-
-        tab1, tab2, tab3, tab4 = st.tabs([
-            "Inscriptions",
-            "Membres",
-            "Publier",
-            "Expirations"
+        
+        tab1, tab2, tab3, tab4, tab5 = st.tabs([
+            "📝 Inscriptions",
+            "📊 Liste Membres",
+            "📣 Publier News",
+            "⏳ Expirations J-3",
+            "🚫 Expirés"
         ])
-
-        # ================= TAB 1 =================
+        
         with tab1:
-            df = charger_depuis_supabase()
-
-            noms = ["---"] + df["nom"].tolist()
-            choix = st.selectbox("Choisir", noms)
-
+            st.subheader("📝 Gérer les Membres")
+            df_selec = charger_depuis_supabase()
+            liste_noms = ["--- NOUVEL ABONNÉ ---"] + df_selec["nom"].tolist()
+            choix = st.selectbox("Rechercher :", liste_noms)
+            
             if st.button("✏️ Modifier"):
-                st.session_state.edit = choix
+                st.session_state["edit_nom"] = choix
+            
+            v_nom, v_wa, v_statut, v_duree = "", "", "Actif", 1
+            
+            if st.session_state.get("edit_nom") and st.session_state["edit_nom"] != "--- NOUVEL ABONNÉ ---":
+                l = df_selec[df_selec["nom"] == st.session_state["edit_nom"]].iloc[0]
+                v_nom, v_wa, v_statut, v_duree = l["nom"], l["WhatsApp"], l["statut"], int(l["duree_mois"])
 
-            v_nom, v_wa, v_statut, v_mois = "", "", "Actif", 1
-
-            if st.session_state.get("edit") and st.session_state.edit != "---":
-                d = df[df["nom"] == st.session_state.edit].iloc[0]
-                v_nom, v_wa, v_statut, v_mois = d["nom"], d["WhatsApp"], d["statut"], int(d["duree_mois"])
-
-            with st.form("form"):
-                nom = st.text_input("Nom", value=v_nom)
-                wa = st.text_input("WhatsApp", value=v_wa)
-                statut = st.selectbox("Statut", ["Actif","Inactif"])
-                debut = st.date_input("Début", datetime.now())
-                mois = st.number_input("Durée", 1, 24, v_mois)
-
+            with st.form("form_gestion", clear_on_submit=True):
+                col1, col2 = st.columns(2)
+                with col1:
+                    nom = st.text_input("Nom", value=v_nom)
+                    wa = st.text_input("WhatsApp", value=v_wa)
+                    stt = st.selectbox("Statut", ["Actif", "Inactif"], index=0 if v_statut == "Actif" else 1)
+                with col2:
+                    debut = st.date_input("Début", datetime.now())
+                    mois = st.number_input("Mois", min_value=1, value=v_duree)
+                
                 fin = pd.to_datetime(debut) + pd.DateOffset(months=int(mois))
 
-                if st.form_submit_button("Enregistrer"):
-                    supabase.table("abonnes").upsert({
+                if st.form_submit_button("💾 ENREGISTRER"):
+                    data = {
                         "nom": nom,
                         "date_debut": debut.strftime("%Y-%m-%d"),
                         "duree_mois": int(mois),
                         "date_fin": fin.strftime("%Y-%m-%d"),
                         "WhatsApp": wa,
-                        "statut": statut
-                    }, on_conflict="WhatsApp").execute()
-
-                    st.success("✅ OK")
+                        "statut": stt
+                    }
+                    supabase.table("abonnes").upsert(data, on_conflict="WhatsApp").execute()
+                    st.success("✅ Enregistré !")
                     st.rerun()
 
             # SUPPRIMER
-            st.subheader("🗑️ Supprimer")
-            if not df.empty:
-                sup = st.selectbox("Supprimer qui ?", df["nom"].tolist())
-                if st.button("❌ Supprimer"):
-                    supabase.table("abonnes").delete().eq("nom", sup).execute()
-                    st.success("Supprimé")
+            st.subheader("🗑️ Supprimer un abonné")
+            if not df_selec.empty:
+                nom_sup = st.selectbox("Choisir à supprimer", df_selec["nom"].tolist())
+                if st.button("❌ SUPPRIMER"):
+                    supabase.table("abonnes").delete().eq("nom", nom_sup).execute()
+                    st.success(f"{nom_sup} supprimé !")
                     st.rerun()
 
-        # ================= TAB 2 =================
         with tab2:
             st.dataframe(charger_depuis_supabase(), use_container_width=True)
 
-        # ================= TAB 3 =================
         with tab3:
-            t = st.selectbox("Type", ["Photo","Vidéo","Message"])
-            f = st.file_uploader("Fichier", ["png","jpg","mp4"])
-
-            if f:
-                if t == "Photo":
-                    st.image(f)
-                elif t == "Vidéo":
-                    st.video(f)
-
-            with st.form("pub"):
-                txt = st.text_area("Texte")
-
-                if st.form_submit_button("Publier"):
-                    if f:
-                        nom = f.name
-                        supabase.storage.from_("medias").upload(nom, f.getvalue())
-                        url = supabase.storage.from_("medias").get_public_url(nom)
-
-                        supabase.table("publicite").insert({
-                            "type": t,
-                            "url_media": url,
-                            "legende": txt
-                        }).execute()
+            st.subheader("🚀 Publier un Média")
+            t_pub = st.selectbox("Type", ["Photo", "Vidéo", "Message"])
+            fichier = st.file_uploader("Choisir un média", type=["png", "jpg", "jpeg", "mp4"])
+            
+            if fichier:
+                if t_pub == "Photo": st.image(fichier, width=300)
+                if t_pub == "Vidéo": st.video(fichier)
+            
+            with st.form("form_pub_final", clear_on_submit=True):
+                legende_txt = st.text_area("Légende")
+                if st.form_submit_button("📢 PUBLIER"):
+                    if fichier:
+                        nom_seau = "medias" 
+                        nom_f = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{fichier.name}"
+                        supabase.storage.from_(nom_seau).upload(nom_f, fichier.getvalue())
+                        res_url = supabase.storage.from_(nom_seau).get_public_url(nom_f)
+                        url_final = res_url if isinstance(res_url, str) else res_url.public_url
+                        supabase.table("publicite").insert({"type": t_pub, "url_media": url_final, "legende": legende_txt}).execute()
                     else:
-                        supabase.table("publicite").insert({
-                            "type": "Message",
-                            "url_media": "",
-                            "legende": txt
-                        }).execute()
-
-                    st.success("Publié")
+                        supabase.table("publicite").insert({"type": t_pub, "url_media": "", "legende": legende_txt}).execute()
+                    
+                    st.success("✅ Publication réussie !")
                     st.rerun()
 
-        # ================= TAB 4 =================
         with tab4:
-            df = charger_depuis_supabase()
-
-            if not df.empty:
-                df["date_fin"] = pd.to_datetime(df["date_fin"])
+            st.subheader("⏳ Relances WhatsApp (J-3)")
+            df_s = charger_depuis_supabase()
+            if not df_s.empty:
+                df_s['date_fin'] = pd.to_datetime(df_s['date_fin'])
                 today = pd.Timestamp(datetime.now().date())
-                df["restant"] = (df["date_fin"] - today).dt.days
+                df_s['restant'] = (df_s['date_fin'] - today).dt.days
 
-                # BIENTOT EXPIRÉS
-                st.subheader("⏳ Bientôt expirés")
-                alert = df[(df["restant"] <= 3) & (df["restant"] >= 0)]
+                alerte = df_s[(df_s['restant'] <= 3) & (df_s['restant'] >= 0)]
 
-                for _, r in alert.iterrows():
-                    num = "".join(filter(str.isdigit, str(r["WhatsApp"])))
+                for _, r in alerte.iterrows():
+                    num_raw = "".join(filter(str.isdigit, str(r["WhatsApp"])))
 
-                    if num.startswith("243"):
-                        final = num
-                    elif num.startswith("0"):
-                        final = "243" + num[1:]
+                    if num_raw.startswith("243"):
+                        num_final = num_raw
+                    elif num_raw.startswith("0"):
+                        num_final = "243" + num_raw[1:]
                     else:
-                        final = "243" + num
+                        num_final = "243" + num_raw
 
-                    msg = f"Bonjour {r['nom']} votre abonnement expire le {r['date_fin'].date()}"
-                    link = f"https://wa.me/{final}?text={urllib.parse.quote(msg)}"
+                    msg = f"Bonjour {r['nom']} ! 👋 Votre abonnement se termine le {r['date_fin'].date()}."
+                    wa_url = f"https://wa.me/{num_final}?text={urllib.parse.quote(msg)}"
 
                     st.warning(f"{r['nom']} expire dans {r['restant']} jours")
-                    st.markdown(f"[📩 WhatsApp]({link})")
+                    st.markdown(f"[📩 WhatsApp]({wa_url})")
 
-                # EXPIRÉS
-                st.subheader("🚫 Expirés")
-                exp = df[df["restant"] < 0]
+        with tab5:
+            st.subheader("🚫 Abonnements Expirés")
 
-                for _, r in exp.iterrows():
-                    st.error(f"{r['nom']} expiré depuis {abs(r['restant'])} jours")
+            df_s = charger_depuis_supabase()
+            if not df_s.empty:
+                df_s['date_fin'] = pd.to_datetime(df_s['date_fin'])
+                today = pd.Timestamp(datetime.now().date())
+                df_s['restant'] = (df_s['date_fin'] - today).dt.days
+
+                expires = df_s[df_s['restant'] < 0]
+
+                if not expires.empty:
+                    for _, r in expires.iterrows():
+                        st.error(f"❌ {r['nom']} | Expiré depuis {abs(r['restant'])} jours")
+                else:
+                    st.success("✅ Aucun expiré")
