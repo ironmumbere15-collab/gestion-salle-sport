@@ -129,29 +129,39 @@ elif page == "🔐 Gestion Admin":
                         st.rerun()
 
         with tab4:
+                    with tab4:
             st.subheader("⏳ Alertes d'expiration (J-3)")
             df_suivi = charger_depuis_supabase()
+            
+            # Vérification si les colonnes nécessaires existent
             if not df_suivi.empty:
-                aujourdhui = pd.Timestamp(datetime.now().date())
-                df_suivi['date_fin_dt'] = pd.to_datetime(df_suivi['date_fin'])
-                df_suivi['restant'] = (df_suivi['date_fin_dt'] - aujourdhui).dt.days
-                
-                # Filtrer J-3 et Actifs
-                alerte_df = df_suivi[(df_suivi['restant'] <= 3) & (df_suivi['statut'] == 'Actif')]
-                
-                if not alerte_df.empty:
-                    for _, row in alerte_df.iterrows():
-                        c_info, c_wa = st.columns([3, 1])
-                        j = row['restant']
-                        emoji = "🔴" if j < 0 else "🟠"
-                        txt = f"Expiré" if j < 0 else f"J-{j}"
-                        
-                        c_info.write(f"{emoji} **{row['nom']}** ({txt}) - Fin le {row['date_fin']}")
-                        
-                        # Lien WhatsApp
-                        msg = f"Bonjour {row['nom']}, c'est 365 GYM & FITNESS. Votre abonnement se termine le {row['date_fin']}. N'oubliez pas de passer nous voir pour le renouveler ! 💪"
-                        wa_url = f"https://wa.me{row['whatsapp']}?text={msg.replace(' ', '%20')}"
-                        c_wa.markdown(f"[📲 Notifier]({wa_url})")
+                if 'date_fin' in df_suivi.columns and 'statut' in df_suivi.columns:
+                    aujourdhui = pd.Timestamp(datetime.now().date())
+                    df_suivi['date_fin_dt'] = pd.to_datetime(df_suivi['date_fin'])
+                    df_suivi['restant'] = (df_suivi['date_fin_dt'] - aujourdhui).dt.days
+                    
+                    # Filtrer ceux qui expirent dans 3 jours ou moins et qui sont Actifs
+                    alerte_df = df_suivi[(df_suivi['restant'] <= 3) & (df_suivi['statut'].str.lower() == 'actif')]
+                    
+                    if not alerte_df.empty:
+                        for _, row in alerte_df.iterrows():
+                            c_info, c_wa = st.columns([3, 1])
+                            j = row['restant']
+                            emoji = "🔴" if j < 0 else "🟠"
+                            txt = "Déjà expiré" if j < 0 else f"Expire dans {j} jours"
+                            
+                            c_info.write(f"{emoji} **{row['nom']}** ({txt}) - Fin le {row['date_fin']}")
+                            
+                            # Préparation du lien WhatsApp
+                            message_wa = f"Bonjour {row['nom']}, c'est 365 GYM & FITNESS. Votre abonnement se termine le {row['date_fin']}. N'oubliez pas de passer nous voir pour le renouveler ! 💪"
+                            wa_url = f"https://wa.me{row['whatsapp']}?text={message_wa.replace(' ', '%20')}"
+                            c_wa.markdown(f"[📲 Envoyer Relance]({wa_url})")
+                    else:
+                        st.success("✅ Aucun abonnement n'expire dans les 3 prochains jours.")
+                else:
+                    st.warning("⚠️ Les colonnes 'date_fin' ou 'statut' sont introuvables dans Supabase. Vérifiez les noms dans votre table.")
+            else:
+                st.info("La liste des abonnés est vide.")
                 else:
                     st.success("Tout est à jour ! Aucun abonnement n'expire bientôt.")
             else:
