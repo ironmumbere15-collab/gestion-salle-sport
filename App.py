@@ -17,50 +17,29 @@ except Exception as e:
 st.set_page_config(page_title="365 GYM & FITNESS", layout="wide", page_icon="💪")
 
 # 3. GESTION DU LOGO & FONCTIONS
-        with tab3:
-            st.subheader("🚀 Publier une Story / Post")
-            
-            with st.form("form_pub", clear_on_submit=True):
-                t_pub = st.selectbox("Type de média", ["Photo", "Vidéo", "Message Texte"])
-                
-                # Bouton pour choisir un fichier dans ta galerie
-                fichier = st.file_uploader("Choisir un média depuis votre galerie", type=["png", "jpg", "jpeg", "mp4", "mov"])
-                
-                m_pub = st.text_area("Légende de votre publication")
-                
-                if st.form_submit_button("📢 Publier maintenant"):
-                    if fichier is not None:
-                        # 1. Envoi du fichier vers le Storage Supabase
-                        nom_fichier = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{fichier.name}"
-                        chemin_destination = f"{nom_fichier}"
-                        
-                        try:
-                            # Téléchargement vers le bucket 'publicite_media'
-                            supabase.storage.from_("publicite_media").upload(chemin_destination, fichier.getvalue())
-                            
-                            # Récupération de l'URL publique de l'image
-                            url_publique = supabase.storage.from_("publicite_media").get_public_url(chemin_destination)
-                            
-                            # 2. Enregistrement en base de données
-                            data_insert = {
-                                "type": t_pub, 
-                                "url_media": url_publique, 
-                                "legende": m_pub
-                            }
-                            supabase.table("publicite").insert(data_insert).execute()
-                            st.success("🔥 Publication réussie ! C'est en ligne.")
-                            st.rerun()
-                        except Exception as e:
-                            st.error(f"Erreur lors de l'envoi : {e}")
-                    elif t_pub == "Message Texte" and m_pub:
-                        # Cas d'un simple message sans image
-                        supabase.table("publicite").insert({"type": t_pub, "url_media": "", "legende": m_pub}).execute()
-                        st.success("✅ Message publié !")
-                        st.rerun()
-                    else:
-                        st.warning("Veuillez sélectionner un fichier ou écrire un message.")
+logo_path = "logo.png" 
 
-# 4. NAVIGATION (Défini AVANT l'utilisation de la variable 'page')
+def afficher_logo(largeur=200):
+    if os.path.exists(logo_path):
+        st.image(logo_path, width=largeur)
+    else:
+        st.info("🏋️ 365 GYM & FITNESS")
+
+def charger_depuis_supabase():
+    try:
+        response = supabase.table("abonnes").select("*").execute()
+        return pd.DataFrame(response.data) if response.data else pd.DataFrame(columns=["nom", "date_debut", "duree_mois", "date_fin", "whatsapp", "statut"])
+    except:
+        return pd.DataFrame(columns=["nom", "date_debut", "duree_mois", "date_fin", "whatsapp", "statut"])
+
+def charger_publicites():
+    try:
+        response = supabase.table("publicite").select("*").order("id", desc=True).execute()
+        return response.data if response.data else []
+    except:
+        return []
+
+# 4. NAVIGATION
 st.sidebar.title("🧭 Menu")
 page = st.sidebar.radio("Navigation", ["📢 Page Publicité", "🔐 Gestion Admin"])
 
@@ -69,15 +48,14 @@ if page == "📢 Page Publicité":
     afficher_logo(300)
     st.title("Bienvenue chez 365 GYM & FITNESS")
     
-    # Affichage des posts dynamiques
     posts = charger_publicites()
     if posts:
         for post in posts:
             with st.container():
                 st.divider()
-                if post['type'] == "Photo":
+                if post['type'] == "Photo" and post['url_media']:
                     st.image(post['url_media'], caption=post['legende'], use_container_width=True)
-                elif post['type'] == "Vidéo":
+                elif post['type'] == "Vidéo" and post['url_media']:
                     st.video(post['url_media'])
                     st.caption(post['legende'])
                 else:
@@ -129,15 +107,26 @@ elif page == "🔐 Gestion Admin":
             st.dataframe(df_view, use_container_width=True)
 
         with tab3:
-            st.subheader("🚀 Publier sur la page d'accueil")
-            with st.form("form_pub"):
+            st.subheader("🚀 Publier un Média (Galerie)")
+            with st.form("form_pub", clear_on_submit=True):
                 t_pub = st.selectbox("Type", ["Photo", "Vidéo", "Message"])
-                u_pub = st.text_input("Lien URL (Image ou Vidéo YouTube)")
-                m_pub = st.text_area("Légende ou Message")
+                fichier = st.file_uploader("Choisir un fichier", type=["png", "jpg", "jpeg", "mp4"])
+                m_pub = st.text_area("Légende")
+                
                 if st.form_submit_button("📢 Publier"):
-                    supabase.table("publicite").insert({"type": t_pub, "url_media": u_pub, "legende": m_pub}).execute()
-                    st.success("Posté !")
-                    st.rerun()
+                    if fichier:
+                        nom_f = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{fichier.name}"
+                        # Envoi au Bucket
+                        supabase.storage.from_("publicite_media").upload(nom_f, fichier.getvalue())
+                        url_pub = supabase.storage.from_("publicite_media").get_public_url(nom_f)
+                        # Enregistrement Table
+                        supabase.table("publicite").insert({"type": t_pub, "url_media": url_pub, "legende": m_pub}).execute()
+                        st.success("C'est en ligne !")
+                        st.rerun()
+                    elif t_pub == "Message" and m_pub:
+                        supabase.table("publicite").insert({"type": t_pub, "url_media": "", "legende": m_pub}).execute()
+                        st.success("Message posté !")
+                        st.rerun()
 
     elif pwd != "":
         st.error("❌ Code incorrect")
