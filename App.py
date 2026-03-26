@@ -35,10 +35,24 @@ def charger_depuis_supabase():
 
 def charger_publicites():
     try:
-        response = supabase.table("publicite").select("*").order("id", desc=True).execute()
-        return response.data if response.data else []
-    except:
-        return []
+        # 4. NAVIGATION (Version Classe avec Boutons)
+if 'page' not in st.session_state:
+    st.session_state['page'] = "📢 Page Publicité"
+
+st.sidebar.title("💎 365 GYM MENU")
+
+# Bouton 1 : Publicité
+if st.sidebar.button("📢 PAGE PUBLICITÉ", use_container_width=True, type="primary" if st.session_state['page'] == "📢 Page Publicité" else "secondary"):
+    st.session_state['page'] = "📢 Page Publicité"
+    st.rerun()
+
+# Bouton 2 : Admin
+if st.sidebar.button("🔐 GESTION ADMIN", use_container_width=True, type="primary" if st.session_state['page'] == "🔐 Gestion Admin" else "secondary"):
+    st.session_state['page'] = "🔐 Gestion Admin"
+    st.rerun()
+
+# On définit la variable 'page' pour que le reste du code fonctionne
+page = st.session_state['page']
 
 # 4. NAVIGATION
 st.sidebar.title("🧭 Menu")
