@@ -9,95 +9,108 @@ try:
     key = st.secrets["SUPABASE_KEY"]
     supabase: Client = create_client(url, key)
 except Exception as e:
-    st.error("Configuration Supabase manquante dans les Secrets.")
+    st.error("🚨 Configuration Supabase manquante dans les Secrets !")
     st.stop()
 
-# 2. CONFIGURATION & STYLE
+# 2. CONFIGURATION DE LA PAGE
 st.set_page_config(page_title="365 GYM & FITNESS", layout="wide", page_icon="💪")
 
-# 3. INITIALISATION ADMIN
-if 'admin' not in st.session_state:
-    st.session_state['admin'] = False
+# 3. GESTION DU LOGO (Depuis ton dépôt GitHub)
+# Remplace 'Logo.png' par le nom exact de ton fichier image sur GitHub
+logo_path = "Logo.png" 
 
-# FONCTION CHARGEMENT
+# 4. INITIALISATION SÉCURITÉ (On ne sauvegarde pas 'admin' en session pour forcer le MDP)
+# Le mot de passe sera demandé à chaque rechargement de la page Admin.
+
+# 5. FONCTIONS DE GESTION
 def charger_depuis_supabase():
     try:
         response = supabase.table("abonnes").select("*").execute()
-        if response.data:
-            df = pd.DataFrame(response.data)
-            df_final = pd.DataFrame()
-            df_final["Nom"] = df["nom"]
-            df_final["Date début"] = pd.to_datetime(df["date_debut"])
-            df_final["Durée (mois)"] = df["duree_mois"]
-            df_final["Date fin"] = pd.to_datetime(df["date_fin"])
-            df_final["WhatsApp"] = df["whatsapp"]
-            df_final["Statut"] = df["statut"]
-            return df_final
-        return pd.DataFrame(columns=["Nom", "Date début", "Durée (mois)", "Date fin", "WhatsApp", "Statut"])
+        return pd.DataFrame(response.data) if response.data else pd.DataFrame(columns=["nom", "date_debut", "duree_mois", "date_fin", "whatsapp", "statut"])
     except:
-        return pd.DataFrame(columns=["Nom", "Date début", "Durée (mois)", "Date fin", "WhatsApp", "Statut"])
+        return pd.DataFrame(columns=["nom", "date_debut", "duree_mois", "date_fin", "whatsapp", "statut"])
 
-# 4. BARRE LATÉRALE (NAVIGATION)
-st.sidebar.title("🧭 Navigation")
-page = st.sidebar.radio("Aller vers :", ["📢 Publicité & Offres", "🔐 Espace Gestion Admin"])
+# 6. NAVIGATION
+page = st.sidebar.radio("Navigation", ["📢 Page Publicité", "🔐 Gestion Abonnés (Admin)"])
 
-# --- PAGE 1 : PUBLICITÉ (PUBLIQUE) ---
-if page == "📢 Publicité & Offres":
-    st.markdown("<h1 style='text-align: center;'>🏋️ 365 GYM & FITNESS</h1>", unsafe_allow_html=True)
-    st.image("https://via.placeholder.com", use_container_width=True)
+# --- PAGE 1 : PUBLICITÉ (VISIBLE PAR TOUS) ---
+if page == "📢 Page Publicité":
+    st.image(logo_path, width=200)
+    st.title("🏋️ Bienvenue chez 365 GYM & FITNESS")
     
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.info("### 1 MOIS\n**300 DH**\nAccès Illimité")
-    with col2:
-        st.success("### 3 MOIS\n**800 DH**\n+ 1 Séance Coaching")
-    with col3:
-        st.warning("### 12 MOIS\n**2500 DH**\nLe meilleur prix !")
+    st.markdown("""
+    ### 🔥 Nos Offres Exceptionnelles
+    - **1 Mois** : 300 DH (Accès complet)
+    - **3 Mois** : 800 DH (*Promotion*)
+    - **12 Mois** : 2500 DH (*Meilleur prix*)
+    """)
+    st.info("📍 Situé au centre-ville - Ouvert 7j/7")
 
-# --- PAGE 2 : ESPACE GESTION (ADMIN UNIQUEMENT) ---
-elif page == "🔐 Espace Gestion Admin":
-    if not st.session_state['admin']:
-        st.subheader("Connexion requise")
-        pwd = st.sidebar.text_input("Mot de passe", type="password")
-        if st.sidebar.button("Se connecter"):
-            if pwd == "1980":
-                st.session_state['admin'] = True
-                st.rerun()
-            else:
-                st.error("Mot de passe incorrect")
-    else:
-        st.sidebar.success("Mode Admin Actif")
-        if st.sidebar.button("Se déconnecter"):
-            st.session_state['admin'] = False
-            st.rerun()
-
-        # Onglets à l'intérieur de l'espace Admin
-        tab1, tab2, tab3 = st.tabs(["📝 Nouvel Abonné", "📋 Liste & Modif", "📲 Notifications"])
-
+# --- PAGE 2 : GESTION ABONNÉS (AVEC MOT DE PASSE) ---
+elif page == "🔐 Gestion Abonnés (Admin)":
+    # Demande de mot de passe systématique
+    pwd = st.sidebar.text_input("🔑 Code d'accès", type="password")
+    
+    if pwd == "1980":
+        st.image(logo_path, width=100)
+        st.header("⚙️ Panneau de Contrôle Admin")
+        
+        # Onglets de gestion
+        tab1, tab2 = st.tabs(["📝 Enregistrement & Actions", "📊 Liste des Membres"])
+        
         with tab1:
-            st.subheader("Inscrire un client")
-            with st.form("ajout_admin", clear_on_submit=True):
-                nom = st.text_input("Nom Complet")
-                wa = st.text_input("WhatsApp (ex: 212...)")
-                duree = st.number_input("Durée", 1)
-                if st.form_submit_button("💾 Sauvegarder"):
-                    fin = datetime.now() + pd.DateOffset(months=duree)
-                    data = {"nom": nom, "date_debut": datetime.now().strftime("%Y-%m-%d"), 
-                            "duree_mois": int(duree), "date_fin": fin.strftime("%Y-%m-%d"),
-                            "whatsapp": wa, "statut": "Actif"}
+            st.subheader("Formulaire d'Abonnement")
+            df = charger_depuis_supabase()
+            
+            with st.form("form_gestion", clear_on_submit=True):
+                col1, col2 = st.columns(2)
+                with col1:
+                    nom = st.text_input("Nom de l'abonné")
+                    whatsapp = st.text_input("Numéro WhatsApp")
+                    statut = st.selectbox("Statut", ["Actif", "Inactif"])
+                with col2:
+                    date_debut = st.date_input("Date début", datetime.now())
+                    duree = st.number_input("Durée (mois)", min_value=1, value=1)
+                
+                # Calcul de la fin
+                date_fin = date_debut + pd.DateOffset(months=duree)
+                st.write(f"Fin prévue : **{date_fin.strftime('%d/%m/%Y')}**")
+
+                # BOUTONS D'ACTION
+                col_btn1, col_btn2, col_btn3 = st.columns(3)
+                add_btn = col_btn1.form_submit_button("➕ AJOUTER")
+                edit_btn = col_btn2.form_submit_button("🔄 MODIFIER")
+                del_btn = col_btn3.form_submit_button("🗑️ SUPPRIMER")
+
+            # LOGIQUE DES BOUTONS
+            if add_btn or edit_btn:
+                if nom and whatsapp:
+                    data = {
+                        "nom": nom, "date_debut": date_debut.strftime("%Y-%m-%d"),
+                        "duree_mois": int(duree), "date_fin": date_fin.strftime("%Y-%m-%d"),
+                        "whatsapp": whatsapp, "statut": statut
+                    }
                     supabase.table("abonnes").upsert(data, on_conflict="whatsapp").execute()
-                    st.success("Client ajouté !")
+                    st.success(f"Opération réussie pour {nom}")
+                else:
+                    st.error("Le nom et le WhatsApp sont obligatoires.")
+
+            if del_btn:
+                if whatsapp:
+                    supabase.table("abonnes").delete().eq("whatsapp", whatsapp).execute()
+                    st.warning(f"Abonné avec le numéro {whatsapp} supprimé.")
+                else:
+                    st.error("Entrez le numéro WhatsApp pour supprimer.")
 
         with tab2:
-            st.subheader("Base de données")
-            df = charger_depuis_supabase()
-            st.dataframe(df, use_container_width=True)
-            if st.button("🗑️ Supprimer un abonné"):
-                 # Logique de suppression ici
-                 pass
+            st.subheader("Base de données en temps réel")
+            df_view = charger_depuis_supabase()
+            if not df_view.empty:
+                # Renommer pour un affichage propre
+                df_view.columns = ["ID", "Nom", "Début", "Mois", "Fin", "WhatsApp", "Statut", "Créé le"]
+                st.dataframe(df_view, use_container_width=True)
+            else:
+                st.info("Aucun membre dans la base.")
 
-        with tab3:
-            st.subheader("Rappels Twilio")
-            st.write("Liste des abonnements arrivant à échéance...")
-            if st.button("📲 Envoyer rappels"):
-                st.warning("Twilio n'est pas encore configuré.")
+    elif pwd != "":
+        st.error("❌ Code incorrect")
