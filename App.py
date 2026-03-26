@@ -147,10 +147,12 @@ elif page == "🔐 Gestion Admin":
                         st.rerun()
 
         with tab4:
-            st.subheader("⏳ Alertes d'expiration (J-3)")
+                    with tab4:
+            st.subheader("⏳ Relances Clients (J-3)")
             df_suivi = charger_depuis_supabase()
+            
             if not df_suivi.empty:
-                # Détection des colonnes (Casse-insensible)
+                # Détection des colonnes (pour éviter les erreurs de majuscules)
                 c_statut = next((c for c in df_suivi.columns if c.lower() == 'statut'), None)
                 c_fin = next((c for c in df_suivi.columns if c.lower() in ['date_fin', 'date fin']), None)
                 c_wa = next((c for c in df_suivi.columns if c.lower() == 'whatsapp'), None)
@@ -161,25 +163,43 @@ elif page == "🔐 Gestion Admin":
                     df_suivi['date_fin_dt'] = pd.to_datetime(df_suivi[c_fin])
                     df_suivi['restant'] = (df_suivi['date_fin_dt'] - aujourdhui).dt.days
                     
+                    # Filtrer les membres Actifs qui expirent dans 3 jours ou moins
                     alerte_df = df_suivi[(df_suivi['restant'] <= 3) & (df_suivi[c_statut].astype(str).str.lower() == 'actif')]
                     
                     if not alerte_df.empty:
                         for _, row in alerte_df.iterrows():
-                            c_info, c_wa_btn = st.columns([3, 1])
+                            # Création d'une ligne propre par client
+                            col_info, col_action = st.columns([3, 1])
+                            
                             j = row['restant']
                             emoji = "🔴" if j < 0 else "🟠"
                             txt = "Expiré" if j < 0 else f"J-{j}"
-                            c_info.write(f"{emoji} **{row[c_nom]}** ({txt}) - Fin le {row[c_fin]}")
                             
-                            msg_wa = f"Bonjour {row[c_nom]}, c'est 365 GYM & FITNESS. Votre abonnement se termine le {row[c_fin]}. N'oubliez pas de passer nous voir ! 💪"
-                            wa_url = f"https://wa.me{row[c_wa]}?text={msg_wa.replace(' ', '%20')}"
-                            c_wa_btn.markdown(f"[📲 Notifier]({wa_url})")
+                            col_info.markdown(f"{emoji} **{row[c_nom]}** | {txt} | Fin : `{row[c_fin]}`")
+                            
+                            # --- PRÉPARATION DU LIEN WHATSAPP RÉEL ---
+                            # 1. On nettoie le numéro (enlève les espaces ou + si présents)
+                            num_propre = str(row[c_wa]).replace("+", "").replace(" ", "")
+                            
+                            # 2. On prépare le message (tu peux changer ce texte !)
+                            message_relance = (
+                                f"Bonjour *{row[c_nom]}* ! 👋\n\n"
+                                f"C'est l'équipe de *365 GYM & FITNESS*. 💪\n\n"
+                                f"Nous vous informons que votre abonnement arrive à son terme le *{row[c_fin]}*.\n"
+                                "Pensez à passer à la salle pour le renouveler et ne pas perdre le rythme ! 🔥\n\n"
+                                "À bientôt !"
+                            )
+                            
+                            # 3. Encodage du lien pour WhatsApp
+                            import urllib.parse
+                            msg_encode = urllib.parse.quote(message_relance)
+                            wa_url = f"https://wa.me{num_propre}?text={msg_encode}"
+                            
+                            # 4. Le bouton cliquable
+                            col_action.link_button("📲 NOTIFIER", wa_url, use_container_width=True)
                     else:
                         st.success("✅ Aucun abonnement n'expire bientôt.")
                 else:
-                    st.warning("Structure Supabase incomplète.")
+                    st.warning("Structure de table incorrecte dans Supabase.")
             else:
-                st.info("La liste est vide.")
-
-    elif pwd != "":
-        st.error("❌ Code incorrect")
+                st.info("La liste des abonnés est vide.")
