@@ -129,29 +129,48 @@ elif page == "🔐 Gestion Admin":
                         st.rerun()
 
         with tab4:
+                    with tab4:
             st.subheader("⏳ Alertes d'expiration (J-3)")
             df_suivi = charger_depuis_supabase()
+            
             if not df_suivi.empty:
-                # Vérification sécurité colonnes
-                if 'date_fin' in df_suivi.columns and 'statut' in df_suivi.columns:
+                # --- AUTO-DETECTION DES COLONNES (Minuscules ou Majuscules) ---
+                # On cherche 'statut' ou 'Statut'
+                col_statut = next((c for c in df_suivi.columns if c.lower() == 'statut'), None)
+                # On cherche 'date_fin' ou 'Date fin'
+                col_fin = next((c for c in df_suivi.columns if c.lower() in ['date_fin', 'date fin']), None)
+                # On cherche 'whatsapp'
+                col_wa = next((c for c in df_suivi.columns if c.lower() == 'whatsapp'), None)
+                # On cherche 'nom'
+                col_nom = next((c for c in df_suivi.columns if c.lower() == 'nom'), None)
+
+                if col_statut and col_fin:
                     aujourdhui = pd.Timestamp(datetime.now().date())
-                    df_suivi['date_fin_dt'] = pd.to_datetime(df_suivi['date_fin'])
+                    df_suivi['date_fin_dt'] = pd.to_datetime(df_suivi[col_fin])
                     df_suivi['restant'] = (df_suivi['date_fin_dt'] - aujourdhui).dt.days
                     
-                    # Filtrer
-                    alerte_df = df_suivi[(df_suivi['restant'] <= 3) & (df_suivi['statut'].str.lower() == 'actif')]
+                    # Filtrer les membres Actifs (peu importe la casse)
+                    alerte_df = df_suivi[(df_suivi['restant'] <= 3) & (df_suivi[col_statut].astype(str).str.lower() == 'actif')]
                     
                     if not alerte_df.empty:
                         for _, row in alerte_df.iterrows():
-                            c_info, c_wa = st.columns()
+                            c_info, c_wa = st.columns([3, 1])
                             j = row['restant']
                             emoji = "🔴" if j < 0 else "🟠"
                             txt = "Expiré" if j < 0 else f"J-{j}"
-                            c_info.write(f"{emoji} **{row['nom']}** ({txt}) - Fin le {row['date_fin']}")
                             
-                            msg = f"Bonjour {row['nom']}, c'est 365 GYM & FITNESS. Votre abonnement se termine le {row['date_fin']}. N'oubliez pas de passer nous voir ! 💪"
-                            wa_url = f"https://wa.me{row['whatsapp']}?text={msg.replace(' ', '%20')}"
+                            c_info.write(f"{emoji} **{row[col_nom]}** ({txt}) - Fin le {row[col_fin]}")
+                            
+                            # Lien WhatsApp
+                            msg = f"Bonjour {row[col_nom]}, c'est 365 GYM & FITNESS. Votre abonnement se termine le {row[col_fin]}. N'oubliez pas de passer nous voir ! 💪"
+                            wa_url = f"https://wa.me{row[col_wa]}?text={msg.replace(' ', '%20')}"
                             c_wa.markdown(f"[📲 Notifier]({wa_url})")
+                    else:
+                        st.success("✅ Aucun abonnement n'expire bientôt.")
+                else:
+                    st.error(f"⚠️ Erreur de structure : Colonnes trouvées : {list(df_suivi.columns)}. Vérifie que ta table Supabase contient bien 'statut' et 'date_fin'.")
+            else:
+                st.info("La liste est vide (aucun abonné enregistré).")
                     else:
                         st.success("✅ Aucun abonnement n'expire bientôt.")
                 else:
