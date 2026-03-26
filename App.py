@@ -17,27 +17,48 @@ except Exception as e:
 st.set_page_config(page_title="365 GYM & FITNESS", layout="wide", page_icon="💪")
 
 # 3. GESTION DU LOGO & FONCTIONS
-logo_path = "logo.png" 
-
-def afficher_logo(largeur=200):
-    if os.path.exists(logo_path):
-        st.image(logo_path, width=largeur)
-    else:
-        st.info("🏋️ 365 GYM & FITNESS")
-
-def charger_depuis_supabase():
-    try:
-        response = supabase.table("abonnes").select("*").execute()
-        return pd.DataFrame(response.data) if response.data else pd.DataFrame(columns=["nom", "date_debut", "duree_mois", "date_fin", "whatsapp", "statut"])
-    except:
-        return pd.DataFrame(columns=["nom", "date_debut", "duree_mois", "date_fin", "whatsapp", "statut"])
-
-def charger_publicites():
-    try:
-        response = supabase.table("publicite").select("*").order("id", desc=True).execute()
-        return response.data if response.data else []
-    except:
-        return []
+        with tab3:
+            st.subheader("🚀 Publier une Story / Post")
+            
+            with st.form("form_pub", clear_on_submit=True):
+                t_pub = st.selectbox("Type de média", ["Photo", "Vidéo", "Message Texte"])
+                
+                # Bouton pour choisir un fichier dans ta galerie
+                fichier = st.file_uploader("Choisir un média depuis votre galerie", type=["png", "jpg", "jpeg", "mp4", "mov"])
+                
+                m_pub = st.text_area("Légende de votre publication")
+                
+                if st.form_submit_button("📢 Publier maintenant"):
+                    if fichier is not None:
+                        # 1. Envoi du fichier vers le Storage Supabase
+                        nom_fichier = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{fichier.name}"
+                        chemin_destination = f"{nom_fichier}"
+                        
+                        try:
+                            # Téléchargement vers le bucket 'publicite_media'
+                            supabase.storage.from_("publicite_media").upload(chemin_destination, fichier.getvalue())
+                            
+                            # Récupération de l'URL publique de l'image
+                            url_publique = supabase.storage.from_("publicite_media").get_public_url(chemin_destination)
+                            
+                            # 2. Enregistrement en base de données
+                            data_insert = {
+                                "type": t_pub, 
+                                "url_media": url_publique, 
+                                "legende": m_pub
+                            }
+                            supabase.table("publicite").insert(data_insert).execute()
+                            st.success("🔥 Publication réussie ! C'est en ligne.")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Erreur lors de l'envoi : {e}")
+                    elif t_pub == "Message Texte" and m_pub:
+                        # Cas d'un simple message sans image
+                        supabase.table("publicite").insert({"type": t_pub, "url_media": "", "legende": m_pub}).execute()
+                        st.success("✅ Message publié !")
+                        st.rerun()
+                    else:
+                        st.warning("Veuillez sélectionner un fichier ou écrire un message.")
 
 # 4. NAVIGATION (Défini AVANT l'utilisation de la variable 'page')
 st.sidebar.title("🧭 Menu")
