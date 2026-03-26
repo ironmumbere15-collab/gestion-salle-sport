@@ -143,7 +143,6 @@ elif page == "🔐 Gestion Admin":
                         st.rerun()
 
         with tab4:
-                    with tab4:
             st.subheader("⏳ Relances WhatsApp RDC (J-3)")
             df_suivi = charger_depuis_supabase()
             if not df_suivi.empty:
@@ -161,6 +160,7 @@ elif page == "🔐 Gestion Admin":
                     
                     if not alerte_df.empty:
                         for _, row in alerte_df.iterrows():
+                            # ALIGNEMENT STRICT
                             c_info, c_wa_btn = st.columns(2)
                             
                             j = row['restant']
@@ -168,7 +168,7 @@ elif page == "🔐 Gestion Admin":
                             txt = "Expiré" if j < 0 else f"J-{j}"
                             c_info.write(f"{emoji} **{row[c_nom]}** | {txt} | Fin : {row[c_fin]}")
                             
-                            # --- LOGIQUE RDC (243) ---
+                            # LOGIQUE RDC (243)
                             num_raw = "".join(filter(str.isdigit, str(row[c_wa])))
                             if num_raw.startswith("0"):
                                 num_final = "243" + num_raw[1:]
@@ -177,14 +177,10 @@ elif page == "🔐 Gestion Admin":
                             else:
                                 num_final = num_raw
                                 
-                            # Message avec encodage spécial
                             msg = f"Bonjour {row[c_nom]} ! 👋\nC'est 365 GYM & FITNESS. Votre abonnement se termine le {row[c_fin]}. N'oubliez pas de passer nous voir ! 💪"
-                            msg_encoded = urllib.parse.quote(msg)
+                            wa_url = f"https://api.whatsapp.com{num_final}&text={urllib.parse.quote(msg)}"
                             
-                            # LIEN HTTPS SÉCURISÉ (Méthode officielle)
-                            wa_url = f"https://api.whatsapp.com{num_final}&text={msg_encoded}"
-                            
-                            # BOUTON VERT STYLISÉ
+                            # BOUTON ANTI-BLOCAGE SÉCURISÉ (HTTPS)
                             c_wa_btn.markdown(f'''
                                 <a href="{wa_url}" target="_blank" style="text-decoration: none;">
                                     <div style="background-color: #25D366; color: white; padding: 10px; border-radius: 8px; text-align: center; font-weight: bold; cursor: pointer; border: 1px solid #128C7E;">
@@ -198,3 +194,6 @@ elif page == "🔐 Gestion Admin":
                     st.warning("Structure Supabase incomplète.")
             else:
                 st.info("La liste est vide.")
+
+    elif pwd != "":
+        st.error("❌ Code incorrect")
