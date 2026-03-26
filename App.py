@@ -16,7 +16,6 @@ except:
 
 # ================= CONFIG =================
 st.set_page_config(page_title="365 GYM & FITNESS", layout="wide", page_icon="💪")
-
 logo_path = "logo.png"
 
 def afficher_logo(w=200):
@@ -45,19 +44,6 @@ if 'page' not in st.session_state:
     st.session_state['page'] = "📢 Page Publicité"
 if 'logged' not in st.session_state:
     st.session_state['logged'] = False
-
-# ================= CSS =================
-st.markdown("""
-<style>
-/* Couleur principale du logo */
-.logo-color {color:#ff6b2c;}
-.card {background-color:#0b1c2c;padding:15px;border-radius:15px;margin-bottom:15px;}
-.card-exp {background-color:#ff4c4c;padding:15px;border-radius:15px;margin-bottom:15px;}
-.card-alert {background-color:#ff6b2c;padding:15px;border-radius:15px;margin-bottom:15px;}
-.button-menu {background-color:#ff6b2c;color:white;border-radius:8px;padding:10px 15px;font-weight:bold;margin-bottom:10px;width:100%;border:none;font-size:16px;cursor:pointer;}
-.button-menu:hover {background-color:#ff9c5c;}
-</style>
-""", unsafe_allow_html=True)
 
 # ================= NAVIGATION =================
 st.sidebar.title("💎 365 GYM MENU")
@@ -116,7 +102,6 @@ elif page=="🔐 Gestion Admin":
                 l = df[df["nom"]==choix].iloc[0]
                 v_nom, v_wa, v_statut, v_duree = l["nom"], l["WhatsApp"], l["statut"], int(l["duree_mois"])
 
-            st.markdown("<div class='card'>", unsafe_allow_html=True)
             with st.form("form_gestion", clear_on_submit=True):
                 col1, col2 = st.columns(2)
                 with col1:
@@ -128,30 +113,30 @@ elif page=="🔐 Gestion Admin":
                     mois = st.number_input("Mois", min_value=1, value=v_duree)
                 fin = debut + pd.DateOffset(months=mois)
                 if st.form_submit_button("💾 ENREGISTRER"):
-                    data = {"nom":nom,"date_debut":debut.strftime("%Y-%m-%d"),"duree_mois":int(mois),
-                            "date_fin":fin.strftime("%Y-%m-%d"),"WhatsApp":wa,"statut":stt}
+                    data = {"nom":nom,"date_debut":debut.strftime("%Y-%m-%d"),
+                            "duree_mois":int(mois),"date_fin":fin.strftime("%Y-%m-%d"),
+                            "WhatsApp":wa,"statut":stt}
                     supabase.table("abonnes").upsert(data, on_conflict="WhatsApp").execute()
                     st.success("✅ Enregistré !")
                     st.rerun()
-            st.markdown("</div>", unsafe_allow_html=True)
 
-        # -------- LISTE MEMBRES --------
+        # -------- LISTE MEMBRES AVEC BOUTONS --------
         with tab2:
             df = charger_depuis_supabase()
+            st.dataframe(df, use_container_width=True)  # tableau reste intact
+
+            # Ajout des boutons sous le tableau
             for idx,r in df.iterrows():
-                st.markdown("<div class='card' style='display:flex;justify-content:space-between;align-items:center;'>", unsafe_allow_html=True)
-                st.markdown(f"**{r['nom']}** | {r['WhatsApp']} | {r['statut']} | Fin: {r['date_fin']}", unsafe_allow_html=True)
-                col_btn = st.columns([1,1])
-                with col_btn[0]:
+                col1, col2 = st.columns([1,1])
+                with col1:
                     if st.button(f"Modifier-{idx}"):
                         st.session_state.edit = r["WhatsApp"]
-                        st.rerun()
-                with col_btn[1]:
+                        st.info(f"Modifier {r['nom']} (WhatsApp: {r['WhatsApp']})")
+                with col2:
                     if st.button(f"Supprimer-{idx}"):
                         supabase.table("abonnes").delete().eq("WhatsApp", r["WhatsApp"]).execute()
-                        st.success("✅ Supprimé !")
+                        st.success(f"{r['nom']} supprimé !")
                         st.rerun()
-                st.markdown("</div>", unsafe_allow_html=True)
 
         # -------- PUBLIER --------
         with tab3:
@@ -160,7 +145,6 @@ elif page=="🔐 Gestion Admin":
             if fichier:
                 if t_pub=="Photo": st.image(fichier, width=300)
                 if t_pub=="Vidéo": st.video(fichier)
-            st.markdown("<div class='card'>", unsafe_allow_html=True)
             with st.form("form_pub_final", clear_on_submit=True):
                 legende_txt = st.text_area("Légende")
                 if st.form_submit_button("📢 PUBLIER"):
@@ -174,7 +158,6 @@ elif page=="🔐 Gestion Admin":
                         supabase.table("publicite").insert({"type":"Message","url_media":"","legende":legende_txt}).execute()
                     st.success("✅ Publication réussie !")
                     st.rerun()
-            st.markdown("</div>", unsafe_allow_html=True)
 
         # -------- EXPIRATIONS J-3 --------
         with tab4:
@@ -188,7 +171,7 @@ elif page=="🔐 Gestion Admin":
                     num_final = "243"+(num_raw[1:] if num_raw.startswith("0") else num_raw if num_raw.startswith("243") else num_raw)
                     msg = f"Bonjour {r['nom']} ! 👋 Votre abonnement se termine le {r['date_fin']}."
                     wa_url = f"https://wa.me/{num_final}?text={urllib.parse.quote(msg)}"
-                    st.markdown(f"<div class='card-alert'>🔔 **{r['nom']}** | Fin : {r['date_fin']} 👉 <a href='{wa_url}' target='_blank'>Notifier WhatsApp</a></div>", unsafe_allow_html=True)
+                    st.markdown(f"🔔 **{r['nom']}** | Fin : {r['date_fin']} 👉 [Notifier WhatsApp]({wa_url})")
 
         # -------- EXPIRÉS --------
         with tab5:
@@ -198,16 +181,14 @@ elif page=="🔐 Gestion Admin":
                 df_s['restant'] = (df_s['date_fin_dt'] - pd.Timestamp(datetime.now().date())).dt.days
                 exp = df_s[df_s['restant']<0]
                 for idx,r in exp.iterrows():
-                    st.markdown("<div class='card-exp' style='display:flex;justify-content:space-between;align-items:center;'>", unsafe_allow_html=True)
-                    st.markdown(f"❌ {r['nom']} expiré depuis {abs(r['restant'])} jours", unsafe_allow_html=True)
-                    col_btn = st.columns([1,1])
-                    with col_btn[0]:
+                    st.markdown(f"❌ {r['nom']} expiré depuis {abs(r['restant'])} jours")
+                    col1, col2 = st.columns([1,1])
+                    with col1:
                         if st.button(f"Modifier-exp-{idx}"):
                             st.session_state.edit = r["WhatsApp"]
-                            st.rerun()
-                    with col_btn[1]:
+                            st.info(f"Modifier {r['nom']} (WhatsApp: {r['WhatsApp']})")
+                    with col2:
                         if st.button(f"Supprimer-exp-{idx}"):
                             supabase.table("abonnes").delete().eq("WhatsApp", r["WhatsApp"]).execute()
-                            st.success("✅ Supprimé !")
+                            st.success(f"{r['nom']} supprimé !")
                             st.rerun()
-                    st.markdown("</div>", unsafe_allow_html=True)
