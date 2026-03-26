@@ -3,8 +3,8 @@ from supabase import create_client, Client
 import pandas as pd
 
 # 1. Connexion (à mettre en haut de ton script)
-url: str = st.secrets["SUPABASE_URL"]
-key: str = st.secrets["SUPABASE_KEY"]
+url: str = st.secrets["https://friktcksilperngsgocg.supabase.co"]
+key: str = st.secrets["eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZyaWt0Y2tzaWxwZXJuZ3Nnb2NnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0Mjk0MzIsImV4cCI6MjA5MDAwNTQzMn0.Fs3nofdL567AsP5ngVq-cib8vzROYld00JpMgILtU3c"]
 supabase: Client = create_client(url, key)
 
 # 2. Initialisation du Session State pour stocker les données localement
@@ -18,8 +18,8 @@ st.set_page_config(page_title="365 GYM & FITNESS", layout="wide", page_icon="�
 ADMIN_PASSWORD = "1980"
 
 # ===== SUPABASE =====
-SUPABASE_URL = "https://xxxxxx.supabase.co"  # Remplace par ton URL Supabase
-SUPABASE_KEY = "xxxxxxxxxxxxxxxx"           # Remplace par ta clé API Supabase
+SUPABASE_URL = "https://https://friktcksilperngsgocg.supabase.co"  # Remplace par ton URL Supabase
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZyaWt0Y2tzaWxwZXJuZ3Nnb2NnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0Mjk0MzIsImV4cCI6MjA5MDAwNTQzMn0.Fs3nofdL567AsP5ngVq-cib8vzROYld00JpMgILtU3c"           # Remplace par ta clé API Supabase
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # ===== SESSION STATE =====
@@ -188,4 +188,4 @@ elif choix == "Galerie":
 
 elif choix == "Contact":
     st.title("📞 Contact")
-    st.write("Contacter via WhatsApp : +243XXXXXXXXX")
+    st.write("Contacter via WhatsApp : +243994659086")
