@@ -5,7 +5,7 @@ from datetime import datetime
 import os
 import urllib.parse
 
-# ================= CONFIG & DESIGN (NOIR & OR) =================
+# ================= CONFIG & DESIGN (NOIR & OR - ADVENTURE) =================
 st.set_page_config(page_title="365 GYM & FITNESS", layout="wide", page_icon="💪")
 
 LOGO_BLACK = "#000000" 
@@ -69,7 +69,7 @@ if 'logged' not in st.session_state: st.session_state['logged'] = False
 if 'edit_item' not in st.session_state: st.session_state['edit_item'] = None
 
 # Navigation haute
-col_logo, col_nav1, col_nav2 = st.columns([2,3,3])
+col_logo, col_nav1, col_nav2 = st.columns([1,2,2])
 with col_logo: afficher_logo(120)
 with col_nav1: 
     if st.button("📢 ACCUEIL / PUBLICITÉ"): st.session_state['page'] = "📢 Page Publicité"; st.rerun()
@@ -105,8 +105,8 @@ if page == "📢 Page Publicité":
         for post in posts:
             with st.container():
                 st.markdown(f"<div style='background: rgba(0,0,0,0.6); padding: 20px; border-radius: 10px; margin-bottom: 20px; border: 1px solid #333;'>", unsafe_allow_html=True)
-                if post.get('type')=="Photo": st.image(post['url_media'], use_container_width=True)
-                elif post.get('type')=="Vidéo": st.video(post['url_media'])
+                if post.get('type')=="Photo" and post.get('url_media'): st.image(post['url_media'], use_container_width=True)
+                elif post.get('type')=="Vidéo" and post.get('url_media'): st.video(post['url_media'])
                 st.subheader(post.get('legende', ""))
                 st.markdown("</div>", unsafe_allow_html=True)
     else:
@@ -122,6 +122,7 @@ elif page == "🔐 Gestion Admin":
     else:
         tab1, tab2, tab3, tab4, tab5 = st.tabs(["📝 Inscriptions","📊 Liste","📣 Publier","⏳ J-3","❌ EXPIRÉS"])
 
+        # --- TAB 1 : FORMULAIRE (AVEC MODIF) ---
         with tab1:
             st.subheader("📝 Gérer les Membres")
             edit = st.session_state.edit_item
@@ -142,11 +143,12 @@ elif page == "🔐 Gestion Admin":
                     st.success("✅ Enregistré !")
                     st.rerun()
 
+        # --- TAB 2 : LISTE AVEC BOUTONS ---
         with tab2:
             df = charger_depuis_supabase()
             if not df.empty:
                 for i, r in df.iterrows():
-                    c1, c2, c3, c4 = st.columns([3,2,1,1])
+                    c1, c2, c3, c4 = st.columns([3,3,1,1])
                     c1.write(f"👤 {r['nom']}")
                     c2.write(f"📅 Fin: {r['date_fin']}")
                     if c3.button("✏️", key=f"e{i}"):
@@ -156,6 +158,7 @@ elif page == "🔐 Gestion Admin":
                         supabase.table("abonnes").delete().eq("WhatsApp", r['WhatsApp']).execute()
                         st.rerun()
 
+        # --- TAB 3 : PUBLIER (CORRECTION ROBUSTE URL) ---
         with tab3:
             t_pub = st.selectbox("Type", ["Photo","Vidéo","Message"])
             fichier = st.file_uploader("Média", type=["png","jpg","jpeg","mp4"])
@@ -166,11 +169,15 @@ elif page == "🔐 Gestion Admin":
                     if fichier:
                         fname = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{fichier.name}"
                         supabase.storage.from_("medias").upload(fname, fichier.getvalue())
-                        url_f = supabase.storage.from_("medias").get_public_url(fname).public_url
+                        # Correction de l'erreur AttributeError ici :
+                        res_url = supabase.storage.from_("medias").get_public_url(fname)
+                        url_f = res_url if isinstance(res_url, str) else res_url.public_url
+                    
                     supabase.table("publicite").insert({"type":t_pub,"url_media":url_f,"legende":txt}).execute()
-                    st.success("Publiée !")
+                    st.success("✅ Publiée !")
                     st.rerun()
 
+        # --- TAB 4 : J-3 ---
         with tab4:
             df_s = charger_depuis_supabase()
             if not df_s.empty:
@@ -183,11 +190,15 @@ elif page == "🔐 Gestion Admin":
                     msg = f"Bonjour {r['nom']} ! 👋 Votre abonnement 365 GYM se termine le {r['date_fin']}."
                     st.markdown(f"🔔 **{r['nom']}** | [Envoyer WhatsApp](https://wa.me{num_final}?text={urllib.parse.quote(msg)})")
 
+        # --- TAB 5 : EXPIRÉS ---
         with tab5:
             st.subheader("❌ Abonnements Expirés")
             df_e = charger_depuis_supabase()
             if not df_e.empty:
                 df_e['date_fin_dt'] = pd.to_datetime(df_e['date_fin'])
                 exp = df_e[df_e['date_fin_dt'] < pd.Timestamp(datetime.now().date())]
-                for _, r in exp.iterrows():
-                    st.markdown(f"<div style='color:red; font-weight:bold; border:1px solid red; padding:10px; margin-bottom:5px;'>❌ {r['nom']} - Expiré le {r['date_fin']}</div>", unsafe_allow_html=True)
+                if not exp.empty:
+                    for _, r in exp.iterrows():
+                        st.markdown(f"<div style='color:red; font-weight:bold; border:1px solid red; padding:10px; margin-bottom:5px; background:rgba(255,0,0,0.1);'>❌ {r['nom']} - Expiré le {r['date_fin']}</div>", unsafe_allow_html=True)
+                else:
+                    st.success("Personne n'est expiré ! 🎉")
