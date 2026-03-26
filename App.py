@@ -10,7 +10,7 @@ try:
     url = st.secrets["SUPABASE_URL"]
     key = st.secrets["SUPABASE_KEY"]
     supabase: Client = create_client(url, key)
-except:
+except Exception as e:
     st.error("🚨 Configuration Supabase manquante dans les Secrets !")
     st.stop()
 
@@ -120,23 +120,9 @@ elif page=="🔐 Gestion Admin":
                     st.success("✅ Enregistré !")
                     st.rerun()
 
-        # -------- LISTE MEMBRES AVEC BOUTONS --------
+        # -------- LISTE MEMBRES (inchangé) --------
         with tab2:
-            df = charger_depuis_supabase()
-            st.dataframe(df, use_container_width=True)  # tableau reste intact
-
-            # Ajout des boutons sous le tableau
-            for idx,r in df.iterrows():
-                col1, col2 = st.columns([1,1])
-                with col1:
-                    if st.button(f"Modifier-{idx}"):
-                        st.session_state.edit = r["WhatsApp"]
-                        st.info(f"Modifier {r['nom']} (WhatsApp: {r['WhatsApp']})")
-                with col2:
-                    if st.button(f"Supprimer-{idx}"):
-                        supabase.table("abonnes").delete().eq("WhatsApp", r["WhatsApp"]).execute()
-                        st.success(f"{r['nom']} supprimé !")
-                        st.rerun()
+            st.dataframe(charger_depuis_supabase(), use_container_width=True)
 
         # -------- PUBLIER --------
         with tab3:
@@ -180,15 +166,5 @@ elif page=="🔐 Gestion Admin":
                 df_s['date_fin_dt'] = pd.to_datetime(df_s['date_fin'])
                 df_s['restant'] = (df_s['date_fin_dt'] - pd.Timestamp(datetime.now().date())).dt.days
                 exp = df_s[df_s['restant']<0]
-                for idx,r in exp.iterrows():
+                for _,r in exp.iterrows():
                     st.markdown(f"❌ {r['nom']} expiré depuis {abs(r['restant'])} jours")
-                    col1, col2 = st.columns([1,1])
-                    with col1:
-                        if st.button(f"Modifier-exp-{idx}"):
-                            st.session_state.edit = r["WhatsApp"]
-                            st.info(f"Modifier {r['nom']} (WhatsApp: {r['WhatsApp']})")
-                    with col2:
-                        if st.button(f"Supprimer-exp-{idx}"):
-                            supabase.table("abonnes").delete().eq("WhatsApp", r["WhatsApp"]).execute()
-                            st.success(f"{r['nom']} supprimé !")
-                            st.rerun()
