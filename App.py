@@ -38,16 +38,23 @@ def calculer_date_fin(date_debut, duree):
 def charger_depuis_supabase():
     try:
         response = supabase.table("abonnes").select("*").execute()
-        if response.data:
+        # On vérifie si on a bien reçu des données ET si la liste n'est pas vide
+        if response.data and len(response.data) > 0:
             df = pd.DataFrame(response.data)
+            
+            # On vérifie que la colonne existe avant de faire le mapping
             df_final = pd.DataFrame()
-            df_final["Nom"] = df["nom"]
-            df_final["Date début"] = pd.to_datetime(df["date_debut"])
-            df_final["Durée (mois)"] = df["duree_mois"]
-            df_final["Date fin"] = pd.to_datetime(df["date_fin"])
-            df_final["WhatsApp"] = df["whatsapp"]
-            df_final["Statut"] = df["statut"]
+            df_final["Nom"] = df["nom"] if "nom" in df.columns else ""
+            df_final["Date début"] = pd.to_datetime(df["date_debut"]) if "date_debut" in df.columns else datetime.now()
+            df_final["Durée (mois)"] = df["duree_mois"] if "duree_mois" in df.columns else 1
+            df_final["Date fin"] = pd.to_datetime(df["date_fin"]) if "date_fin" in df.columns else datetime.now()
+            df_final["WhatsApp"] = df["whatsapp"] if "whatsapp" in df.columns else ""
+            df_final["Statut"] = df["statut"] if "statut" in df.columns else "Actif"
+            
             st.session_state['abonnés'] = df_final
+        else:
+            # Si la base est vide, on initialise un tableau vide propre
+            st.session_state['abonnés'] = pd.DataFrame(columns=["Nom", "Date début", "Durée (mois)", "Date fin", "WhatsApp", "Statut"])
     except Exception as e:
         st.error(f"Erreur de chargement : {e}")
 
