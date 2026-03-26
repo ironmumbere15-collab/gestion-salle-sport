@@ -107,8 +107,38 @@ elif page == "🔐 Gestion Admin":
             st.dataframe(df_view, use_container_width=True)
 
         with tab3:
-            st.subheader("📣 Publier News")
-            st.info("Cette section sera bientôt prête pour vos publications.")
+                    with tab3:
+            st.subheader("🚀 Publier un Média (Galerie)")
+            with st.form("form_pub", clear_on_submit=True):
+                t_pub = st.selectbox("Type", ["Photo", "Vidéo", "Message"])
+                fichier = st.file_uploader("Choisir un fichier", type=["png", "jpg", "jpeg", "mp4"])
+                m_pub = st.text_area("Légende")
+                
+                if st.form_submit_button("📢 Publier"):
+                    if fichier:
+                        # 1. On donne un nom unique au fichier
+                        nom_f = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{fichier.name}"
+                        
+                        # 2. On l'envoie dans ton seau (Bucket) Supabase
+                        supabase.storage.from_("publicite_media").upload(nom_f, fichier.getvalue())
+                        
+                        # 3. ON RÉCUPÈRE L'URL PUBLIQUE (C'est ce qui manquait !)
+                        res = supabase.storage.from_("publicite_media").get_public_url(nom_f)
+                        url_finale = res if isinstance(res, str) else res.public_url
+
+                        # 4. On enregistre dans la table pour que la page Publicité le voit
+                        supabase.table("publicite").insert({
+                            "type": t_pub, 
+                            "url_media": url_finale, 
+                            "legende": m_pub
+                        }).execute()
+                        
+                        st.success("✅ C'est en ligne sur la page Publicité !")
+                        st.rerun()
+                    elif t_pub == "Message" and m_pub:
+                        supabase.table("publicite").insert({"type": t_pub, "url_media": "", "legende": m_pub}).execute()
+                        st.success("✅ Message posté !")
+                        st.rerun()
 
         with tab4:
             st.subheader("⏳ Relances WhatsApp RDC (J-3)")
