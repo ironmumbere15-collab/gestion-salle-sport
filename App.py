@@ -46,12 +46,10 @@ if 'page' not in st.session_state:
 
 st.sidebar.title("💎 365 GYM MENU")
 
-# Bouton 1 : Publicité
 if st.sidebar.button("📢 PAGE PUBLICITÉ", use_container_width=True, type="primary" if st.session_state['page'] == "📢 Page Publicité" else "secondary"):
     st.session_state['page'] = "📢 Page Publicité"
     st.rerun()
 
-# Bouton 2 : Admin
 if st.sidebar.button("🔐 GESTION ADMIN", use_container_width=True, type="primary" if st.session_state['page'] == "🔐 Gestion Admin" else "secondary"):
     st.session_state['page'] = "🔐 Gestion Admin"
     st.rerun()
@@ -96,7 +94,7 @@ elif page == "🔐 Gestion Admin":
             
             v_nom, v_wa, v_statut, v_duree = "", "", "Actif", 1
             if choix != "--- NOUVEL ABONNÉ ---":
-                l = df_selec[df_selec["nom"] == choix].iloc
+                l = df_selec[df_selec["nom"] == choix].iloc[0]
                 v_nom, v_wa, v_statut, v_duree = l["nom"], l["WhatsApp"], l["statut"], int(l["duree_mois"])
 
             with st.form("form_gestion", clear_on_submit=True):
@@ -164,9 +162,12 @@ elif page == "🔐 Gestion Admin":
                     if not alerte.empty:
                         for _, r in alerte.iterrows():
                             num_raw = "".join(filter(str.isdigit, str(r[c_wa])))
-                            num_f = "243" + (num_raw[1:] if num_raw.startswith("0") else num_raw if num_raw.startswith("243") else num_raw)
-                            msg_wa = f"Bonjour {r[c_nom]} ! 👋\nC'est 365 GYM & FITNESS. Votre abonnement se termine le {r[c_fin]}."
-                            wa_url = f"https://wa.me{num_f}?text={urllib.parse.quote(msg_wa)}"
+                            num_final = "243" + (num_raw[1:] if num_raw.startswith("0") else num_raw if num_raw.startswith("243") else num_raw)
+                            msg = f"Bonjour {r[c_nom]} ! 👋\nC'est 365 GYM & FITNESS. Votre abonnement se termine le {r[c_fin]}."
+                            
+                            # --- TON CODE EXACT QUI MARCHE ---
+                            wa_url = f"https://wa.me/{num_final}?text={urllib.parse.quote(msg)}"
+                            
                             st.write(f"🔔 **{r[c_nom]}** | Fin : {r[c_fin]}")
                             st.markdown(f"👉 [NOTIFIER {r[c_nom]} SUR WHATSAPP]({wa_url})")
                             st.divider()
