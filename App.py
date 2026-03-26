@@ -80,7 +80,7 @@ elif page == "🔐 Gestion Admin":
                 col1, col2 = st.columns(2)
                 with col1:
                     nom = st.text_input("Nom de l'abonné")
-                    whatsapp_val = st.text_input("WhatsApp (Ex: 212600000000)")
+                    whatsapp_val = st.text_input("WhatsApp (Ex: 0812345678)")
                     statut_opt = st.selectbox("Statut", ["Actif", "Inactif"])
                 with col2:
                     date_debut = st.date_input("Date début", datetime.now())
@@ -143,11 +143,9 @@ elif page == "🔐 Gestion Admin":
                         st.rerun()
 
         with tab4:
-                    with tab4:
             st.subheader("⏳ Relances WhatsApp RDC (J-3)")
             df_suivi = charger_depuis_supabase()
             if not df_suivi.empty:
-                # Détection automatique des colonnes
                 c_statut = next((c for c in df_suivi.columns if c.lower() == 'statut'), None)
                 c_fin = next((c for c in df_suivi.columns if c.lower() in ['date_fin', 'date fin']), None)
                 c_wa = next((c for c in df_suivi.columns if c.lower() == 'whatsapp'), None)
@@ -162,37 +160,30 @@ elif page == "🔐 Gestion Admin":
                     
                     if not alerte_df.empty:
                         for _, row in alerte_df.iterrows():
-                            c_info, c_btn = st.columns([3, 1])
+                            c_info, c_wa_btn = st.columns()
                             j = row['restant']
                             emoji = "🔴" if j < 0 else "🟠"
                             txt = "Expiré" if j < 0 else f"J-{j}"
                             c_info.write(f"{emoji} **{row[c_nom]}** | {txt} | Fin : {row[c_fin]}")
                             
-                            # --- LOGIQUE SPÉCIALE RDC (243) ---
-                            num_raw = str(row[c_wa])
-                            # On garde seulement les chiffres
-                            num_clean = "".join(filter(str.isdigit, num_raw))
-                            
-                            # Si le numéro commence par 0, on remplace le 0 par 243
-                            if num_clean.startswith("0"):
-                                num_final = "243" + num_clean[1:]
-                            # Si le numéro ne commence pas par 243, on l'ajoute
-                            elif not num_clean.startswith("243"):
-                                num_final = "243" + num_clean
+                            # LOGIQUE RDC (243)
+                            num_raw = "".join(filter(str.isdigit, str(row[c_wa])))
+                            if num_raw.startswith("0"):
+                                num_final = "243" + num_raw[1:]
+                            elif not num_raw.startswith("243"):
+                                num_final = "243" + num_raw
                             else:
-                                num_final = num_clean
-                            
-                            # Message encodé
-                            msg_txt = f"Bonjour {row[c_nom]} ! 👋\nC'est l'équipe 365 GYM & FITNESS. Votre abonnement se termine le {row[c_fin]}. N'oubliez pas de passer nous voir ! 💪"
-                            msg_encoded = urllib.parse.quote(msg_txt)
-                            
-                            # Lien WhatsApp Universel
-                            wa_url = f"https://api.whatsapp.com{num_final}&text={msg_encoded}"
-                            
-                            c_btn.link_button("📲 NOTIFIER", wa_url, use_container_width=True)
+                                num_final = num_raw
+                                
+                            msg = f"Bonjour {row[c_nom]} ! 👋\nC'est 365 GYM & FITNESS. Votre abonnement se termine le {row[c_fin]}. N'oubliez pas de passer nous voir ! 💪"
+                            wa_url = f"https://api.whatsapp.com{num_final}&text={urllib.parse.quote(msg)}"
+                            c_wa_btn.link_button("📲 NOTIFIER", wa_url)
                     else:
                         st.success("✅ Aucun abonnement n'expire bientôt.")
                 else:
                     st.warning("Structure Supabase incomplète.")
             else:
                 st.info("La liste est vide.")
+
+    elif pwd != "":
+        st.error("❌ Code incorrect")
