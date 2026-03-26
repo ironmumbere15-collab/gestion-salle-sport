@@ -143,9 +143,11 @@ elif page == "🔐 Gestion Admin":
                         st.rerun()
 
         with tab4:
-            st.subheader("⏳ Relances WhatsApp (J-3)")
+                    with tab4:
+            st.subheader("⏳ Relances WhatsApp RDC (J-3)")
             df_suivi = charger_depuis_supabase()
             if not df_suivi.empty:
+                # Détection automatique des colonnes
                 c_statut = next((c for c in df_suivi.columns if c.lower() == 'statut'), None)
                 c_fin = next((c for c in df_suivi.columns if c.lower() in ['date_fin', 'date fin']), None)
                 c_wa = next((c for c in df_suivi.columns if c.lower() == 'whatsapp'), None)
@@ -166,17 +168,31 @@ elif page == "🔐 Gestion Admin":
                             txt = "Expiré" if j < 0 else f"J-{j}"
                             c_info.write(f"{emoji} **{row[c_nom]}** | {txt} | Fin : {row[c_fin]}")
                             
-                            # LIEN WHATSAPP RÉEL
-                            num = str(row[c_wa]).replace("+", "").replace(" ", "")
-                            msg = f"Bonjour {row[c_nom]} ! 👋\nC'est 365 GYM & FITNESS. Votre abonnement se termine le {row[c_fin]}. N'oubliez pas de passer nous voir ! 💪"
-                            wa_url = f"https://wa.me{num}?text={urllib.parse.quote(msg)}"
-                            c_btn.link_button("📲 NOTIFIER", wa_url)
+                            # --- LOGIQUE SPÉCIALE RDC (243) ---
+                            num_raw = str(row[c_wa])
+                            # On garde seulement les chiffres
+                            num_clean = "".join(filter(str.isdigit, num_raw))
+                            
+                            # Si le numéro commence par 0, on remplace le 0 par 243
+                            if num_clean.startswith("0"):
+                                num_final = "243" + num_clean[1:]
+                            # Si le numéro ne commence pas par 243, on l'ajoute
+                            elif not num_clean.startswith("243"):
+                                num_final = "243" + num_clean
+                            else:
+                                num_final = num_clean
+                            
+                            # Message encodé
+                            msg_txt = f"Bonjour {row[c_nom]} ! 👋\nC'est l'équipe 365 GYM & FITNESS. Votre abonnement se termine le {row[c_fin]}. N'oubliez pas de passer nous voir ! 💪"
+                            msg_encoded = urllib.parse.quote(msg_txt)
+                            
+                            # Lien WhatsApp Universel
+                            wa_url = f"https://api.whatsapp.com{num_final}&text={msg_encoded}"
+                            
+                            c_btn.link_button("📲 NOTIFIER", wa_url, use_container_width=True)
                     else:
                         st.success("✅ Aucun abonnement n'expire bientôt.")
                 else:
                     st.warning("Structure Supabase incomplète.")
             else:
                 st.info("La liste est vide.")
-
-    elif pwd != "":
-        st.error("❌ Code incorrect")
