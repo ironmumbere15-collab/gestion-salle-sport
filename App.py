@@ -26,6 +26,62 @@ def afficher_logo(largeur=200):
         st.info("🏋️ 365 GYM & FITNESS") # Texte de secours si l'image manque
 
 # 4. FONCTIONS DE GESTION
+# --- AJOUT DANS LES FONCTIONS (En haut du fichier) ---
+def charger_publicites():
+    try:
+        response = supabase.table("publicite").select("*").order("created_at", desc=True).execute()
+        return response.data if response.data else []
+    except:
+        return []
+
+# --- MODIFICATION DE LA PAGE PUBLICITÉ (VISIBLE PAR TOUS) ---
+if page == "📢 Page Publicité":
+    afficher_logo(300)
+    st.title("Bienvenue chez 365 GYM & FITNESS")
+    
+    # Affichage dynamique des posts enregistrés
+    posts = charger_publicites()
+    for post in posts:
+        with st.container():
+            st.divider()
+            if post['type'] == "Photo":
+                st.image(post['url_media'], caption=post['legende'], use_container_width=True)
+            elif post['type'] == "Vidéo":
+                st.video(post['url_media'])
+                st.caption(post['legende'])
+            else:
+                st.info(f"### {post['legende']}")
+
+# --- AJOUT DANS L'ESPACE ADMIN (DANS UN NOUVEL ONGLET) ---
+elif page == "🔐 Gestion Abonnés (Admin)":
+    pwd = st.sidebar.text_input("🔑 Code d'accès", type="password")
+    if pwd == "1980":
+        # On ajoute un 3ème onglet pour gérer la pub
+        tab1, tab2, tab3 = st.tabs(["📝 Inscriptions", "📊 Liste Membres", "📣 Publier News"])
+        
+        with tab3:
+            st.subheader("🚀 Publier sur la page d'accueil")
+            with st.form("form_pub"):
+                type_pub = st.selectbox("Type de contenu", ["Photo", "Vidéo", "Message Texte"])
+                url_link = st.text_input("Lien URL du média (Image ou YouTube/Vimeo)")
+                message = st.text_area("Légende ou Message à afficher")
+                
+                if st.form_submit_button("📢 Publier maintenant"):
+                    data_pub = {"type": type_pub, "url_media": url_link, "legende": message}
+                    supabase.table("publicite").insert(data_pub).execute()
+                    st.success("C'est en ligne !")
+
+            # Possibilité de supprimer les anciens posts
+            st.divider()
+            st.subheader("🗑️ Gérer les publications")
+            all_pubs = charger_publicites()
+            for p in all_pubs:
+                col_p, col_d = st.columns([4, 1])
+                col_p.write(f"{p['type']} : {p['legende'][:50]}...")
+                if col_d.button("Supprimer", key=p['id']):
+                    supabase.table("publicite").delete().eq("id", p['id']).execute()
+                    st.rerun()
+
 def charger_depuis_supabase():
     try:
         response = supabase.table("abonnes").select("*").execute()
