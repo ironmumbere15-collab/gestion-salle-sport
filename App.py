@@ -28,9 +28,9 @@ def afficher_logo(largeur=200):
 def charger_depuis_supabase():
     try:
         response = supabase.table("abonnes").select("*").execute()
-        return pd.DataFrame(response.data) if response.data else pd.DataFrame(columns=["nom", "date_debut", "duree_mois", "date_fin", "whatsapp", "statut"])
+        return pd.DataFrame(response.data) if response.data else pd.DataFrame(columns=["nom", "date_debut", "duree_mois", "date_fin", "WhatsApp", "statut"])
     except:
-        return pd.DataFrame(columns=["nom", "date_debut", "duree_mois", "date_fin", "whatsapp", "statut"])
+        return pd.DataFrame(columns=["nom", "date_debut", "duree_mois", "date_fin", "WhatsApp", "statut"])
 
 def charger_publicites():
     try:
@@ -75,48 +75,51 @@ elif page == "🔐 Gestion Admin":
         tab1, tab2, tab3, tab4 = st.tabs(["📝 Inscriptions", "📊 Liste Membres", "📣 Publier News", "⏳ Expirations J-3"])
         
         with tab1:
-                    with tab1:
             with st.form("form_gestion", clear_on_submit=True):
                 col1, col2 = st.columns(2)
                 with col1:
                     nom = st.text_input("Nom de l'abonné")
-                    # On s'assure que le nom envoyé à Supabase sera 'WhatsApp'
-                    whatsapp = st.text_input("WhatsApp (Identifiant unique)")
+                    whatsapp_val = st.text_input("WhatsApp (Identifiant unique)")
                     statut_opt = st.selectbox("Statut", ["Actif", "Inactif"])
                 with col2:
                     date_debut = st.date_input("Date début", datetime.now())
                     duree = st.number_input("Durée (mois)", min_value=1, value=1)
                 
-                date_fin = date_debut + pd.DateOffset(months=duree)
-                st.write(f"Fin prévue : **{date_fin.strftime('%d/%m/%Y')}**")
+                date_fin_calculed = date_debut + pd.DateOffset(months=duree)
+                st.write(f"Fin prévue : **{date_fin_calculed.strftime('%d/%m/%Y')}**")
 
                 col_b1, col_b2, col_b3 = st.columns(3)
                 
-                # --- CORRECTION DES MAJUSCULES ICI ---
+                # PRÉPARATION DES DONNÉES (Attention aux Majuscules de ta DB)
+                data_package = {
+                    "nom": nom,
+                    "date_debut": date_debut.strftime("%Y-%m-%d"),
+                    "duree_mois": int(duree),
+                    "date_fin": date_fin_calculed.strftime("%Y-%m-%d"),
+                    "WhatsApp": whatsapp_val, # Changé en Majuscule ici
+                    "statut": statut_opt
+                }
+
                 if col_b1.form_submit_button("➕ AJOUTER"):
-                    data = {
-                        "nom": nom, 
-                        "date_debut": date_debut.strftime("%Y-%m-%d"), 
-                        "duree_mois": int(duree), 
-                        "date_fin": date_fin.strftime("%Y-%m-%d"), 
-                        "WhatsApp": whatsapp, # Majuscule ajoutée ici
-                        "statut": statut_opt
-                    }
-                    # On précise bien la majuscule aussi pour le conflit
-                    supabase.table("abonnes").upsert(data, on_conflict="WhatsApp").execute()
-                    st.success(f"Ajouté : {nom}")
+                    if nom and whatsapp_val:
+                        supabase.table("abonnes").upsert(data_package, on_conflict="WhatsApp").execute()
+                        st.success(f"Ajouté : {nom}")
+                    else:
+                        st.error("Nom et WhatsApp obligatoires.")
 
                 if col_b2.form_submit_button("🔄 MODIFIER"):
-                    data = {
-                        "nom": nom, 
-                        "date_debut": date_debut.strftime("%Y-%m-%d"), 
-                        "duree_mois": int(duree), 
-                        "date_fin": date_fin.strftime("%Y-%m-%d"), 
-                        "WhatsApp": whatsapp, # Majuscule ajoutée ici
-                        "statut": statut_opt
-                    }
-                    supabase.table("abonnes").upsert(data, on_conflict="WhatsApp").execute()
-                    st.success(f"Mis à jour : {nom}")
+                    if whatsapp_val:
+                        supabase.table("abonnes").upsert(data_package, on_conflict="WhatsApp").execute()
+                        st.success(f"Mis à jour : {nom}")
+                    else:
+                        st.error("WhatsApp obligatoire pour modifier.")
+
+                if col_b3.form_submit_button("🗑️ SUPPRIMER"):
+                    if whatsapp_val:
+                        supabase.table("abonnes").delete().eq("WhatsApp", whatsapp_val).execute()
+                        st.warning(f"Supprimé : {whatsapp_val}")
+                    else:
+                        st.error("WhatsApp obligatoire pour supprimer.")
 
         with tab2:
             st.subheader("Base de données complète")
@@ -147,7 +150,7 @@ elif page == "🔐 Gestion Admin":
             st.subheader("⏳ Alertes d'expiration (J-3)")
             df_suivi = charger_depuis_supabase()
             if not df_suivi.empty:
-                # AUTO-DETECTION DES COLONNES
+                # Détection des colonnes (Casse-insensible)
                 c_statut = next((c for c in df_suivi.columns if c.lower() == 'statut'), None)
                 c_fin = next((c for c in df_suivi.columns if c.lower() in ['date_fin', 'date fin']), None)
                 c_wa = next((c for c in df_suivi.columns if c.lower() == 'whatsapp'), None)
@@ -168,13 +171,13 @@ elif page == "🔐 Gestion Admin":
                             txt = "Expiré" if j < 0 else f"J-{j}"
                             c_info.write(f"{emoji} **{row[c_nom]}** ({txt}) - Fin le {row[c_fin]}")
                             
-                            msg = f"Bonjour {row[c_nom]}, c'est 365 GYM & FITNESS. Votre abonnement se termine le {row[c_fin]}. N'oubliez pas de passer nous voir ! 💪"
-                            wa_url = f"https://wa.me{row[c_wa]}?text={msg.replace(' ', '%20')}"
+                            msg_wa = f"Bonjour {row[c_nom]}, c'est 365 GYM & FITNESS. Votre abonnement se termine le {row[c_fin]}. N'oubliez pas de passer nous voir ! 💪"
+                            wa_url = f"https://wa.me{row[c_wa]}?text={msg_wa.replace(' ', '%20')}"
                             c_wa_btn.markdown(f"[📲 Notifier]({wa_url})")
                     else:
                         st.success("✅ Aucun abonnement n'expire bientôt.")
                 else:
-                    st.warning("⚠️ Structure Supabase incomplète (statut ou date_fin).")
+                    st.warning("Structure Supabase incomplète.")
             else:
                 st.info("La liste est vide.")
 
