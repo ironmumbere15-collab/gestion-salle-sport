@@ -35,7 +35,6 @@ def charger_depuis_supabase():
 
 def charger_publicites():
     try:
-        # On récupère les pubs de la table 'publicite' (Newest first)
         response = supabase.table("publicite").select("*").order("id", desc=True).execute()
         return response.data if response.data else []
     except:
@@ -50,7 +49,6 @@ if page == "📢 Page Publicité":
     afficher_logo(300)
     st.title("Bienvenue chez 365 GYM & FITNESS")
     
-    # AFFICHAGE DES NEWS POSTÉES DEPUIS L'ADMIN
     posts = charger_publicites()
     if posts:
         for post in posts:
@@ -66,7 +64,7 @@ if page == "📢 Page Publicité":
     else:
         st.info("### 🔥 Nos Offres Exceptionnelles\n- **1 Mois** : 300 DH\n- **12 Mois** : 2500 DH")
 
-# --- PAGE 2 : GESTION ADMIN ---
+# --- PAGE 2 : GESTION ADMIN (MOT DE PASSE 1980) ---
 elif page == "🔐 Gestion Admin":
     pwd = st.sidebar.text_input("🔑 Code d'accès", type="password")
     
@@ -116,48 +114,25 @@ elif page == "🔐 Gestion Admin":
             st.dataframe(df_view, use_container_width=True)
 
         with tab3:
-                    with tab3:
             st.subheader("🚀 Publier un Média (Galerie)")
             with st.form("form_pub", clear_on_submit=True):
                 t_pub = st.selectbox("Type", ["Photo", "Vidéo", "Message"])
-                
-                # Sélection du fichier
-                fichier = st.file_uploader("Choisir un fichier depuis votre galerie", type=["png", "jpg", "jpeg", "mp4"])
-                
-                # --- APERÇU EN DIRECT (Comme sur Facebook/WhatsApp) ---
-                if fichier is not None:
-                    if t_pub == "Photo":
-                        st.image(fichier, caption="Aperçu de votre photo", width=300)
-                    elif t_pub == "Vidéo":
-                        st.video(fichier)
-                        st.caption("Aperçu de votre vidéo")
-                
+                fichier = st.file_uploader("Choisir un fichier", type=["png", "jpg", "jpeg", "mp4"])
                 m_pub = st.text_area("Ajouter une légende...")
                 
                 if st.form_submit_button("📢 PUBLIER SUR LA PAGE PUBLICITÉ"):
                     if fichier:
-                        # 1. Nom unique pour le fichier
                         nom_f = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{fichier.name}"
-                        
-                        # 2. Envoi vers le Storage Supabase
                         supabase.storage.from_("publicite_media").upload(nom_f, fichier.getvalue())
-                        
-                        # 3. Récupération de l'URL publique
                         res = supabase.storage.from_("publicite_media").get_public_url(nom_f)
                         url_finale = res if isinstance(res, str) else res.public_url
                         
-                        # 4. Enregistrement dans la table pour affichage public
-                        supabase.table("publicite").insert({
-                            "type": t_pub, 
-                            "url_media": url_finale, 
-                            "legende": m_pub
-                        }).execute()
-                        
-                        st.success("🔥 C'est en ligne ! Vos clients peuvent le voir sur la page d'accueil.")
+                        supabase.table("publicite").insert({"type": t_pub, "url_media": url_finale, "legende": m_pub}).execute()
+                        st.success("✅ Publication réussie !")
                         st.rerun()
                     elif t_pub == "Message" and m_pub:
                         supabase.table("publicite").insert({"type": t_pub, "url_media": "", "legende": m_pub}).execute()
-                        st.success("✅ Message publié !")
+                        st.success("✅ Message posté !")
                         st.rerun()
 
         with tab4:
@@ -170,18 +145,16 @@ elif page == "🔐 Gestion Admin":
                 c_nom = next((c for c in df_suivi.columns if c.lower() == 'nom'), None)
 
                 if c_statut and c_fin:
-                    aujourdhui = pd.Timestamp(datetime.now().date())
+                    auj = pd.Timestamp(datetime.now().date())
                     df_suivi['date_fin_dt'] = pd.to_datetime(df_suivi[c_fin])
-                    df_suivi['restant'] = (df_suivi['date_fin_dt'] - aujourdhui).dt.days
-                    
+                    df_suivi['restant'] = (df_suivi['date_fin_dt'] - auj).dt.days
                     alerte_df = df_suivi[(df_suivi['restant'] <= 3) & (df_suivi[c_statut].astype(str).str.lower() == 'actif')]
-                    
                     if not alerte_df.empty:
                         for _, row in alerte_df.iterrows():
                             num_raw = "".join(filter(str.isdigit, str(row[c_wa])))
-                            num_final = "243" + (num_raw[1:] if num_raw.startswith("0") else num_raw if num_raw.startswith("243") else num_raw)
-                            msg = f"Bonjour {row[c_nom]} ! 👋\nC'est 365 GYM & FITNESS. Votre abonnement se termine le {row[c_fin]}."
-                            wa_url = f"https://wa.me{num_final}?text={urllib.parse.quote(msg)}"
+                            num_f = "243" + (num_raw[1:] if num_raw.startswith("0") else num_raw if num_raw.startswith("243") else num_raw)
+                            msg_wa = f"Bonjour {row[c_nom]} ! 👋\nC'est 365 GYM & FITNESS. Votre abonnement se termine le {row[c_fin]}."
+                            wa_url = f"https://wa.me{num_f}?text={urllib.parse.quote(msg_wa)}"
                             st.write(f"🔔 **{row[c_nom]}** | Fin : {row[c_fin]}")
                             st.markdown(f"👉 [NOTIFIER SUR WHATSAPP]({wa_url})")
                             st.divider()
