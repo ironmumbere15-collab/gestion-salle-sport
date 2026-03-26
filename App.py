@@ -75,18 +75,43 @@ elif page == "🔐 Gestion Admin":
         tab1, tab2, tab3, tab4 = st.tabs(["📝 Inscriptions", "📊 Liste Membres", "📣 Publier News", "⏳ Expirations J-3"])
         
         with tab1:
+                    with tab1:
+            st.subheader("📝 Modifier ou Ajouter un Membre")
+            
+            # 1. On charge la liste actuelle pour la sélection
+            df_selec = charger_depuis_supabase()
+            
+            # 2. Barre de recherche pour choisir un membre existant
+            liste_noms = ["--- NOUVEL ABONNÉ ---"] + df_selec["nom"].tolist()
+            choix = st.selectbox("Rechercher un membre pour modifier/supprimer :", liste_noms)
+            
+            # Initialisation des variables par défaut
+            val_nom = ""
+            val_wa = ""
+            val_statut = "Actif"
+            val_duree = 1
+            
+            # Si un membre est choisi, on pré-remplit les champs
+            if choix != "--- NOUVEL ABONNÉ ---":
+                ligne = df_selec[df_selec["nom"] == choix].iloc[0]
+                val_nom = ligne["nom"]
+                val_wa = ligne["WhatsApp"]
+                val_statut = ligne["statut"]
+                val_duree = int(ligne["duree_mois"])
+
+            # 3. LE FORMULAIRE
             with st.form("form_gestion", clear_on_submit=True):
                 col1, col2 = st.columns(2)
                 with col1:
-                    nom = st.text_input("Nom de l'abonné")
-                    whatsapp_val = st.text_input("WhatsApp (Ex: 0812345678)")
-                    statut_opt = st.selectbox("Statut", ["Actif", "Inactif"])
+                    nom = st.text_input("Nom de l'abonné", value=val_nom)
+                    whatsapp_val = st.text_input("WhatsApp (Identifiant unique)", value=val_wa)
+                    statut_opt = st.selectbox("Statut", ["Actif", "Inactif"], index=0 if val_statut == "Actif" else 1)
                 with col2:
                     date_debut = st.date_input("Date début", datetime.now())
-                    duree = st.number_input("Durée (mois)", min_value=1, value=1)
+                    duree = st.number_input("Durée (mois)", min_value=1, value=val_duree)
                 
-                date_fin_calculed = date_debut + pd.DateOffset(months=duree)
-                st.write(f"Fin prévue : **{date_fin_calculed.strftime('%d/%m/%Y')}**")
+                date_fin_calc = date_debut + pd.DateOffset(months=duree)
+                st.write(f"Fin prévue : **{date_fin_calc.strftime('%d/%m/%Y')}**")
 
                 col_b1, col_b2, col_b3 = st.columns(3)
                 
@@ -94,27 +119,35 @@ elif page == "🔐 Gestion Admin":
                     "nom": nom,
                     "date_debut": date_debut.strftime("%Y-%m-%d"),
                     "duree_mois": int(duree),
-                    "date_fin": date_fin_calculed.strftime("%Y-%m-%d"),
+                    "date_fin": date_fin_calc.strftime("%Y-%m-%d"),
                     "WhatsApp": whatsapp_val,
                     "statut": statut_opt
                 }
 
-                if col_b1.form_submit_button("➕ AJOUTER"):
+                # BOUTON AJOUTER / MODIFIER (C'est la même logique upsert)
+                if col_b1.form_submit_button("➕ ENREGISTRER"):
                     if nom and whatsapp_val:
                         supabase.table("abonnes").upsert(data_package, on_conflict="WhatsApp").execute()
-                        st.success(f"Ajouté : {nom}")
+                        st.success(f"✅ Enregistré : {nom}")
+                        st.rerun()
                     else:
-                        st.error("Nom et WhatsApp obligatoires.")
+                        st.error("Le nom et le WhatsApp sont obligatoires.")
 
+                # BOUTON MODIFIER (Pour la clarté visuelle)
                 if col_b2.form_submit_button("🔄 MODIFIER"):
                     if whatsapp_val:
                         supabase.table("abonnes").upsert(data_package, on_conflict="WhatsApp").execute()
-                        st.success(f"Mis à jour : {nom}")
+                        st.success(f"✅ Mis à jour : {nom}")
+                        st.rerun()
 
+                # BOUTON SUPPRIMER (Celui-ci doit vraiment effacer dans Supabase)
                 if col_b3.form_submit_button("🗑️ SUPPRIMER"):
                     if whatsapp_val:
                         supabase.table("abonnes").delete().eq("WhatsApp", whatsapp_val).execute()
-                        st.warning(f"Supprimé : {whatsapp_val}")
+                        st.warning(f"🗑️ {nom} a été supprimé de la base de données.")
+                        st.rerun()
+                    else:
+                        st.error("Sélectionnez un membre ou tapez son WhatsApp pour supprimer.")
 
         with tab2:
             st.subheader("Base de données complète")
