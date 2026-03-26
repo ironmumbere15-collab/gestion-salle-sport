@@ -44,7 +44,7 @@ def charger_publicites():
 st.sidebar.title("🧭 Menu")
 page = st.sidebar.radio("Navigation", ["📢 Page Publicité", "🔐 Gestion Admin"])
 
-# --- PAGE 1 : PUBLICITÉ ---
+# --- PAGE 1 : PUBLICITÉ (VISIBLE PAR TOUS) ---
 if page == "📢 Page Publicité":
     afficher_logo(300)
     st.title("Bienvenue chez 365 GYM & FITNESS")
@@ -64,7 +64,7 @@ if page == "📢 Page Publicité":
     else:
         st.info("### 🔥 Nos Offres Exceptionnelles\n- **1 Mois** : 300 DH\n- **12 Mois** : 2500 DH")
 
-# --- PAGE 2 : GESTION ADMIN ---
+# --- PAGE 2 : GESTION ADMIN (MOT DE PASSE 1980) ---
 elif page == "🔐 Gestion Admin":
     pwd = st.sidebar.text_input("🔑 Code d'accès", type="password")
     
@@ -122,7 +122,7 @@ elif page == "🔐 Gestion Admin":
             st.dataframe(df_view, use_container_width=True)
 
         with tab3:
-            st.subheader("🚀 Publier un Média")
+            st.subheader("🚀 Publier un Média (Galerie)")
             with st.form("form_pub", clear_on_submit=True):
                 t_pub = st.selectbox("Type", ["Photo", "Vidéo", "Message"])
                 fichier = st.file_uploader("Choisir un fichier", type=["png", "jpg", "jpeg", "mp4"])
@@ -153,7 +153,7 @@ elif page == "🔐 Gestion Admin":
                 if c_statut and c_fin:
                     aujourdhui = pd.Timestamp(datetime.now().date())
                     df_suivi['date_fin_dt'] = pd.to_datetime(df_suivi[c_fin])
-                    df_suivi['restant'] = (df_suivi['date_fin_dt'] - aujourdhui).dt.days
+                    df_suivi['restant'] = (df_suivi['date_fin_dt'] -Mini aujourdhui).dt.days
                     
                     alerte_df = df_suivi[(df_suivi['restant'] <= 3) & (df_suivi[c_statut].astype(str).str.lower() == 'actif')]
                     
@@ -171,11 +171,8 @@ elif page == "🔐 Gestion Admin":
                             msg = f"Bonjour {row[c_nom]} ! 👋\nC'est 365 GYM & FITNESS. Votre abonnement se termine le {row[c_fin]}. N'oubliez pas de passer nous voir ! 💪"
                             wa_url = f"https://wa.me{num_final}?text={urllib.parse.quote(msg)}"
                             
-                            # AFFICHAGE SIMPLE QUI MARCHE
-                            j = row['restant']
-                            txt = "Expiré" if j < 0 else f"J-{j}"
-                            st.write(f"🔔 **{row[c_nom]}** ({txt}) - Fin : {row[c_fin]}")
-                            st.markdown(f"👉 [CLIQUE ICI POUR NOTIFIER]({wa_url})")
+                            st.write(f"🔔 **{row[c_nom]}** | Fin : {row[c_fin]}")
+                            st.markdown(f"👉 [NOTIFIER {row[c_nom]} SUR WHATSAPP]({wa_url})")
                             st.divider()
                     else:
                         st.success("✅ Aucun abonnement n'expire bientôt.")
