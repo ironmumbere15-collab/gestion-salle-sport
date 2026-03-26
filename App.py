@@ -153,7 +153,7 @@ elif page == "🔐 Gestion Admin":
                 if c_statut and c_fin:
                     aujourdhui = pd.Timestamp(datetime.now().date())
                     df_suivi['date_fin_dt'] = pd.to_datetime(df_suivi[c_fin])
-                    df_suivi['restant'] = (df_suivi['date_fin_dt'] -Mini aujourdhui).dt.days
+                    df_suivi['restant'] = (df_suivi['date_fin_dt'] - aujourdhui).dt.days
                     
                     alerte_df = df_suivi[(df_suivi['restant'] <= 3) & (df_suivi[c_statut].astype(str).str.lower() == 'actif')]
                     
