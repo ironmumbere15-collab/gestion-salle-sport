@@ -35,7 +35,12 @@ def charger_depuis_supabase():
 
 def charger_publicites():
     try:
-        # 4. NAVIGATION (Version Classe avec Boutons)
+        response = supabase.table("publicite").select("*").order("id", desc=True).execute()
+        return response.data if response.data else []
+    except:
+        return []
+
+# 4. NAVIGATION (VERSION CLASSE AVEC BOUTONS)
 if 'page' not in st.session_state:
     st.session_state['page'] = "📢 Page Publicité"
 
@@ -51,12 +56,8 @@ if st.sidebar.button("🔐 GESTION ADMIN", use_container_width=True, type="prima
     st.session_state['page'] = "🔐 Gestion Admin"
     st.rerun()
 
-# On définit la variable 'page' pour que le reste du code fonctionne
+# On définit la variable 'page' pour la suite du code
 page = st.session_state['page']
-
-# 4. NAVIGATION
-st.sidebar.title("🧭 Menu")
-page = st.sidebar.radio("Navigation", ["📢 Page Publicité", "🔐 Gestion Admin"])
 
 # --- PAGE 1 : PUBLICITÉ ---
 if page == "📢 Page Publicité":
@@ -149,22 +150,26 @@ elif page == "🔐 Gestion Admin":
                         st.rerun()
 
         with tab4:
-            st.subheader("⏳ Relances WhatsApp (J-3)")
+            st.subheader("⏳ Relances WhatsApp RDC (J-3)")
             df_s = charger_depuis_supabase()
             if not df_s.empty:
-                df_s['date_fin_dt'] = pd.to_datetime(df_s['date_fin'])
-                df_s['restant'] = (df_s['date_fin_dt'] - pd.Timestamp(datetime.now().date())).dt.days
-                alerte = df_s[(df_s['restant'] <= 3) & (df_s['statut'].str.lower() == 'actif')]
-                for _, r in alerte.iterrows():
-                    c1, c2 = st.columns(2)
-                    c1.write(f"🔔 **{r['nom']}** | Fin : {r['date_fin']}")
-                    num = "".join(filter(str.isdigit, str(r['WhatsApp'])))
-                    num_f = "243" + (num[1:] if num.startswith("0") else num if num.startswith("243") else num)
-                    msg_wa = f"Bonjour {r['nom']}, votre abonnement 365 GYM se termine le {r['date_fin']}."
-                    url_wa = f"https://wa.me{num_f}?text={urllib.parse.quote(msg_wa)}"
-                    c2.markdown(f"👉 [NOTIFIER]({url_wa})")
-            else:
-                st.info("Liste vide.")
-
+                c_statut = next((c for c in df_s.columns if c.lower() == 'statut'), None)
+                c_fin = next((c for c in df_s.columns if c.lower() in ['date_fin', 'date fin']), None)
+                c_wa = next((c for c in df_s.columns if c.lower() == 'whatsapp'), None)
+                c_nom = next((c for c in df_s.columns if c.lower() == 'nom'), None)
+                if c_statut and c_fin:
+                    auj = pd.Timestamp(datetime.now().date())
+                    df_s['date_fin_dt'] = pd.to_datetime(df_s[c_fin])
+                    df_s['restant'] = (df_s['date_fin_dt'] - auj).dt.days
+                    alerte = df_s[(df_s['restant'] <= 3) & (df_s[c_statut].astype(str).str.lower() == 'actif')]
+                    if not alerte.empty:
+                        for _, r in alerte.iterrows():
+                            num_raw = "".join(filter(str.isdigit, str(r[c_wa])))
+                            num_f = "243" + (num_raw[1:] if num_raw.startswith("0") else num_raw if num_raw.startswith("243") else num_raw)
+                            msg_wa = f"Bonjour {r[c_nom]} ! 👋\nC'est 365 GYM & FITNESS. Votre abonnement se termine le {r[c_fin]}."
+                            url_wa = f"https://wa.me{num_f}?text={urllib.parse.quote(msg_wa)}"
+                            st.write(f"🔔 **{r[c_nom]}** | Fin : {r[c_fin]}")
+                            st.markdown(f"👉 [NOTIFIER SUR WHATSAPP]({url_wa})")
+                            st.divider()
     elif pwd != "":
         st.error("❌ Code incorrect")
