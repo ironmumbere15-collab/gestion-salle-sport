@@ -106,46 +106,30 @@ elif page == "🔐 Gestion Admin":
             st.dataframe(charger_depuis_supabase(), use_container_width=True)
 
         with tab3:
-                    with tab3:
             st.subheader("🚀 Publier sur la Page Publicité")
             t_pub = st.selectbox("Type", ["Photo", "Vidéo", "Message"])
-            fichier = st.file_uploader("Choisir un média depuis votre galerie", type=["png", "jpg", "jpeg", "mp4"])
+            fichier = st.file_uploader("Choisir un média", type=["png", "jpg", "jpeg", "mp4"])
             
             if fichier:
                 if t_pub == "Photo": st.image(fichier, width=300)
                 if t_pub == "Vidéo": st.video(fichier)
             
             with st.form("form_pub_final", clear_on_submit=True):
-                legende_txt = st.text_area("Ajouter une légende")
-                if st.form_submit_button("📢 PUBLIER MAINTENANT"):
+                legende_txt = st.text_area("Légende")
+                if st.form_submit_button("📢 PUBLIER"):
                     if fichier:
                         try:
-                            # NOM DU SEAU CORRIGÉ (SANS ESPACES)
                             nom_seau = "medias" 
                             nom_f = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{fichier.name}"
-                            
-                            # 1. ENVOI AU STORAGE
-                            supabase.storage.from_(nom_seau).upload(
-                                path=nom_f, 
-                                file=fichier.getvalue()
-                            )
-                            
-                            # 2. RÉCUPÉRATION DE L'URL PUBLIQUE
+                            supabase.storage.from_(nom_seau).upload(nom_f, fichier.getvalue())
                             res_url = supabase.storage.from_(nom_seau).get_public_url(nom_f)
                             url_final = res_url if isinstance(res_url, str) else res_url.public_url
-                            
-                            # 3. ENREGISTREMENT DANS LA TABLE 'publicite'
-                            supabase.table("publicite").insert({
-                                "type": t_pub, 
-                                "url_media": url_final, 
-                                "legende": legende_txt
-                            }).execute()
-                            
-                            st.success("✅ BOUM ! C'est en ligne sur la page Publicité !")
+                            supabase.table("publicite").insert({"type": t_pub, "url_media": url_final, "legende": legende_txt}).execute()
+                            st.success("✅ Publication réussie !")
                             st.rerun()
                         except Exception as e:
-                            st.error(f"Erreur technique : {e}")
-                    elif t_pub == "Message" and legende_txt:
+                            st.error(f"Erreur : {e}")
+                    elif t_pub == "Message":
                         supabase.table("publicite").insert({"type": t_pub, "url_media": "", "legende": legende_txt}).execute()
                         st.success("✅ Message posté !")
                         st.rerun()
@@ -159,11 +143,11 @@ elif page == "🔐 Gestion Admin":
                 alerte = df_s[(df_s['restant'] <= 3) & (df_s['statut'].str.lower() == 'actif')]
                 for _, r in alerte.iterrows():
                     c1, c2 = st.columns(2)
-                    c1.write(f"🔔 **{r['nom']}** | J-{r['restant']} | Fin : {r['date_fin']}")
+                    c1.write(f"🔔 **{r['nom']}** | Fin : {r['date_fin']}")
                     num = "".join(filter(str.isdigit, str(r['WhatsApp'])))
                     num_f = "243" + (num[1:] if num.startswith("0") else num if num.startswith("243") else num)
-                    msg = f"Bonjour {r['nom']}, votre abonnement 365 GYM se termine le {r['date_fin']}."
-                    url_wa = f"https://wa.me{num_f}?text={urllib.parse.quote(msg)}"
+                    msg_wa = f"Bonjour {r['nom']}, votre abonnement 365 GYM se termine le {r['date_fin']}."
+                    url_wa = f"https://wa.me{num_f}?text={urllib.parse.quote(msg_wa)}"
                     c2.markdown(f"👉 [NOTIFIER]({url_wa})")
             else:
                 st.info("Liste vide.")
