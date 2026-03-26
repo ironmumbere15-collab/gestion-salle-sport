@@ -143,6 +143,7 @@ elif page == "🔐 Gestion Admin":
                         st.rerun()
 
         with tab4:
+                    with tab4:
             st.subheader("⏳ Relances WhatsApp RDC (J-3)")
             df_suivi = charger_depuis_supabase()
             if not df_suivi.empty:
@@ -160,7 +161,9 @@ elif page == "🔐 Gestion Admin":
                     
                     if not alerte_df.empty:
                         for _, row in alerte_df.iterrows():
-                            c_info, c_wa_btn = st.columns()
+                            # CORRECTION : Ajout du chiffre 2 dans columns
+                            c_info, c_wa_btn = st.columns(2)
+                            
                             j = row['restant']
                             emoji = "🔴" if j < 0 else "🟠"
                             txt = "Expiré" if j < 0 else f"J-{j}"
@@ -177,13 +180,10 @@ elif page == "🔐 Gestion Admin":
                                 
                             msg = f"Bonjour {row[c_nom]} ! 👋\nC'est 365 GYM & FITNESS. Votre abonnement se termine le {row[c_fin]}. N'oubliez pas de passer nous voir ! 💪"
                             wa_url = f"https://api.whatsapp.com{num_final}&text={urllib.parse.quote(msg)}"
-                            c_wa_btn.link_button("📲 NOTIFIER", wa_url)
+                            c_wa_btn.link_button("📲 NOTIFIER", wa_url, use_container_width=True)
                     else:
                         st.success("✅ Aucun abonnement n'expire bientôt.")
                 else:
                     st.warning("Structure Supabase incomplète.")
             else:
                 st.info("La liste est vide.")
-
-    elif pwd != "":
-        st.error("❌ Code incorrect")
