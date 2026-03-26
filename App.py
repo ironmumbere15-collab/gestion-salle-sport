@@ -16,46 +16,28 @@ except Exception as e:
 # 2. CONFIGURATION DE LA PAGE
 st.set_page_config(page_title="365 GYM & FITNESS", layout="wide", page_icon="💪")
 
-        # --- NOUVEL ONGLET : RAPPELS EXPIRATION ---
-        with tab3: # Ou crée un tab4 si tu veux garder l'onglet Publier séparé
-            st.subheader("⚠️ Abonnements arrivant à expiration (J-3)")
-            
-            df_suivi = charger_depuis_supabase()
-            
-            if not df_suivi.empty:
-                # 1. Calculer les jours restants
-                aujourdhui = pd.Timestamp(datetime.now().date())
-                df_suivi['Date fin'] = pd.to_datetime(df_suivi['date_fin'])
-                df_suivi['Jours restants'] = (df_suivi['Date fin'] - aujourdhui).dt.days
-                
-                # 2. Filtrer ceux qui expirent dans 3 jours ou moins (et qui sont encore Actifs)
-                alerte_df = df_suivi[(df_suivi['Jours restants'] <= 3) & (df_suivi['statut'] == 'Actif')]
-                
-                if not alerte_df.empty:
-                    for index, row in alerte_df.iterrows():
-                        col_info, col_action = st.columns([3, 1])
-                        
-                        jours = row['Jours restants']
-                        couleur = "🔴" if jours < 0 else "🟠"
-                        etat = "Expiré" if jours < 0 else f"Expire dans {jours} jours"
-                        
-                        col_info.write(f"{couleur} **{row['nom']}** ({etat}) - Fin le : {row['Date fin'].strftime('%d/%m/%Y')}")
-                        
-                        # 3. BOUTON WHATSAPP MAGIQUE
-                        # On prépare le message automatique
-                        msg = f"Bonjour {row['nom']}, c'est 365 GYM & FITNESS. Votre abonnement arrive à terme le {row['Date fin'].strftime('%d/%m/%Y')}. Pensez à vous réabonner pour continuer vos séances ! 💪"
-                        
-                        # Création du lien WhatsApp (format international sans le +)
-                        wa_link = f"https://wa.me{row['whatsapp']}?text={msg.replace(' ', '%20')}"
-                        
-                        col_action.markdown(f"[📲 Notifier]({wa_link})")
-                    
-                    st.divider()
-                    st.info("💡 En cliquant sur 'Notifier', votre WhatsApp s'ouvrira avec le message déjà prêt.")
-                else:
-                    st.success("✅ Aucun abonnement n'expire dans les 3 prochains jours.")
-            else:
-                st.info("La base de données est vide.")
+# 3. GESTION DU LOGO & FONCTIONS
+logo_path = "logo.png" 
+
+def afficher_logo(largeur=200):
+    if os.path.exists(logo_path):
+        st.image(logo_path, width=largeur)
+    else:
+        st.info("🏋️ 365 GYM & FITNESS")
+
+def charger_depuis_supabase():
+    try:
+        response = supabase.table("abonnes").select("*").execute()
+        return pd.DataFrame(response.data) if response.data else pd.DataFrame(columns=["nom", "date_debut", "duree_mois", "date_fin", "whatsapp", "statut"])
+    except:
+        return pd.DataFrame(columns=["nom", "date_debut", "duree_mois", "date_fin", "whatsapp", "statut"])
+
+def charger_publicites():
+    try:
+        response = supabase.table("publicite").select("*").order("id", desc=True).execute()
+        return response.data if response.data else []
+    except:
+        return []
 
 # 4. NAVIGATION
 st.sidebar.title("🧭 Menu")
@@ -89,7 +71,8 @@ elif page == "🔐 Gestion Admin":
         afficher_logo(100)
         st.header("⚙️ Panneau de Contrôle Admin")
         
-        tab1, tab2, tab3 = st.tabs(["📝 Inscriptions", "📊 Liste Membres", "📣 Publier News"])
+        # Organisation en 4 Onglets
+        tab1, tab2, tab3, tab4 = st.tabs(["📝 Inscriptions", "📊 Liste Membres", "📣 Publier News", "⏳ Expirations J-3"])
         
         with tab1:
             with st.form("form_gestion", clear_on_submit=True):
@@ -121,6 +104,7 @@ elif page == "🔐 Gestion Admin":
                     st.warning(f"Supprimé : {whatsapp}")
 
         with tab2:
+            st.subheader("Base de données complète")
             df_view = charger_depuis_supabase()
             st.dataframe(df_view, use_container_width=True)
 
@@ -134,10 +118,8 @@ elif page == "🔐 Gestion Admin":
                 if st.form_submit_button("📢 Publier"):
                     if fichier:
                         nom_f = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{fichier.name}"
-                        # Envoi au Bucket
                         supabase.storage.from_("publicite_media").upload(nom_f, fichier.getvalue())
                         url_pub = supabase.storage.from_("publicite_media").get_public_url(nom_f)
-                        # Enregistrement Table
                         supabase.table("publicite").insert({"type": t_pub, "url_media": url_pub, "legende": m_pub}).execute()
                         st.success("C'est en ligne !")
                         st.rerun()
@@ -145,6 +127,35 @@ elif page == "🔐 Gestion Admin":
                         supabase.table("publicite").insert({"type": t_pub, "url_media": "", "legende": m_pub}).execute()
                         st.success("Message posté !")
                         st.rerun()
+
+        with tab4:
+            st.subheader("⏳ Alertes d'expiration (J-3)")
+            df_suivi = charger_depuis_supabase()
+            if not df_suivi.empty:
+                aujourdhui = pd.Timestamp(datetime.now().date())
+                df_suivi['date_fin_dt'] = pd.to_datetime(df_suivi['date_fin'])
+                df_suivi['restant'] = (df_suivi['date_fin_dt'] - aujourdhui).dt.days
+                
+                # Filtrer J-3 et Actifs
+                alerte_df = df_suivi[(df_suivi['restant'] <= 3) & (df_suivi['statut'] == 'Actif')]
+                
+                if not alerte_df.empty:
+                    for _, row in alerte_df.iterrows():
+                        c_info, c_wa = st.columns([3, 1])
+                        j = row['restant']
+                        emoji = "🔴" if j < 0 else "🟠"
+                        txt = f"Expiré" if j < 0 else f"J-{j}"
+                        
+                        c_info.write(f"{emoji} **{row['nom']}** ({txt}) - Fin le {row['date_fin']}")
+                        
+                        # Lien WhatsApp
+                        msg = f"Bonjour {row['nom']}, c'est 365 GYM & FITNESS. Votre abonnement se termine le {row['date_fin']}. N'oubliez pas de passer nous voir pour le renouveler ! 💪"
+                        wa_url = f"https://wa.me{row['whatsapp']}?text={msg.replace(' ', '%20')}"
+                        c_wa.markdown(f"[📲 Notifier]({wa_url})")
+                else:
+                    st.success("Tout est à jour ! Aucun abonnement n'expire bientôt.")
+            else:
+                st.info("La liste est vide.")
 
     elif pwd != "":
         st.error("❌ Code incorrect")
