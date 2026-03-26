@@ -3,6 +3,7 @@ from supabase import create_client, Client
 import pandas as pd
 from datetime import datetime
 import os
+import urllib.parse
 
 # 1. CONNEXION SUPABASE
 try:
@@ -71,7 +72,7 @@ elif page == "🔐 Gestion Admin":
         afficher_logo(100)
         st.header("⚙️ Panneau de Contrôle Admin")
         
-        # Organisation en 4 Onglets
+        # Organisation stricte des 4 Onglets
         tab1, tab2, tab3, tab4 = st.tabs(["📝 Inscriptions", "📊 Liste Membres", "📣 Publier News", "⏳ Expirations J-3"])
         
         with tab1:
@@ -79,7 +80,7 @@ elif page == "🔐 Gestion Admin":
                 col1, col2 = st.columns(2)
                 with col1:
                     nom = st.text_input("Nom de l'abonné")
-                    whatsapp_val = st.text_input("WhatsApp (Identifiant unique)")
+                    whatsapp_val = st.text_input("WhatsApp (Ex: 212600000000)")
                     statut_opt = st.selectbox("Statut", ["Actif", "Inactif"])
                 with col2:
                     date_debut = st.date_input("Date début", datetime.now())
@@ -90,13 +91,12 @@ elif page == "🔐 Gestion Admin":
 
                 col_b1, col_b2, col_b3 = st.columns(3)
                 
-                # PRÉPARATION DES DONNÉES (Attention aux Majuscules de ta DB)
                 data_package = {
                     "nom": nom,
                     "date_debut": date_debut.strftime("%Y-%m-%d"),
                     "duree_mois": int(duree),
                     "date_fin": date_fin_calculed.strftime("%Y-%m-%d"),
-                    "WhatsApp": whatsapp_val, # Changé en Majuscule ici
+                    "WhatsApp": whatsapp_val,
                     "statut": statut_opt
                 }
 
@@ -111,15 +111,11 @@ elif page == "🔐 Gestion Admin":
                     if whatsapp_val:
                         supabase.table("abonnes").upsert(data_package, on_conflict="WhatsApp").execute()
                         st.success(f"Mis à jour : {nom}")
-                    else:
-                        st.error("WhatsApp obligatoire pour modifier.")
 
                 if col_b3.form_submit_button("🗑️ SUPPRIMER"):
                     if whatsapp_val:
                         supabase.table("abonnes").delete().eq("WhatsApp", whatsapp_val).execute()
                         st.warning(f"Supprimé : {whatsapp_val}")
-                    else:
-                        st.error("WhatsApp obligatoire pour supprimer.")
 
         with tab2:
             st.subheader("Base de données complète")
@@ -147,12 +143,9 @@ elif page == "🔐 Gestion Admin":
                         st.rerun()
 
         with tab4:
-                    with tab4:
-            st.subheader("⏳ Relances Clients (J-3)")
+            st.subheader("⏳ Relances WhatsApp (J-3)")
             df_suivi = charger_depuis_supabase()
-            
             if not df_suivi.empty:
-                # Détection des colonnes (pour éviter les erreurs de majuscules)
                 c_statut = next((c for c in df_suivi.columns if c.lower() == 'statut'), None)
                 c_fin = next((c for c in df_suivi.columns if c.lower() in ['date_fin', 'date fin']), None)
                 c_wa = next((c for c in df_suivi.columns if c.lower() == 'whatsapp'), None)
@@ -163,43 +156,27 @@ elif page == "🔐 Gestion Admin":
                     df_suivi['date_fin_dt'] = pd.to_datetime(df_suivi[c_fin])
                     df_suivi['restant'] = (df_suivi['date_fin_dt'] - aujourdhui).dt.days
                     
-                    # Filtrer les membres Actifs qui expirent dans 3 jours ou moins
                     alerte_df = df_suivi[(df_suivi['restant'] <= 3) & (df_suivi[c_statut].astype(str).str.lower() == 'actif')]
                     
                     if not alerte_df.empty:
                         for _, row in alerte_df.iterrows():
-                            # Création d'une ligne propre par client
-                            col_info, col_action = st.columns([3, 1])
-                            
+                            c_info, c_btn = st.columns([3, 1])
                             j = row['restant']
                             emoji = "🔴" if j < 0 else "🟠"
                             txt = "Expiré" if j < 0 else f"J-{j}"
+                            c_info.write(f"{emoji} **{row[c_nom]}** | {txt} | Fin : {row[c_fin]}")
                             
-                            col_info.markdown(f"{emoji} **{row[c_nom]}** | {txt} | Fin : `{row[c_fin]}`")
-                            
-                            # --- PRÉPARATION DU LIEN WHATSAPP RÉEL ---
-                            # 1. On nettoie le numéro (enlève les espaces ou + si présents)
-                            num_propre = str(row[c_wa]).replace("+", "").replace(" ", "")
-                            
-                            # 2. On prépare le message (tu peux changer ce texte !)
-                            message_relance = (
-                                f"Bonjour *{row[c_nom]}* ! 👋\n\n"
-                                f"C'est l'équipe de *365 GYM & FITNESS*. 💪\n\n"
-                                f"Nous vous informons que votre abonnement arrive à son terme le *{row[c_fin]}*.\n"
-                                "Pensez à passer à la salle pour le renouveler et ne pas perdre le rythme ! 🔥\n\n"
-                                "À bientôt !"
-                            )
-                            
-                            # 3. Encodage du lien pour WhatsApp
-                            import urllib.parse
-                            msg_encode = urllib.parse.quote(message_relance)
-                            wa_url = f"https://wa.me{num_propre}?text={msg_encode}"
-                            
-                            # 4. Le bouton cliquable
-                            col_action.link_button("📲 NOTIFIER", wa_url, use_container_width=True)
+                            # LIEN WHATSAPP RÉEL
+                            num = str(row[c_wa]).replace("+", "").replace(" ", "")
+                            msg = f"Bonjour {row[c_nom]} ! 👋\nC'est 365 GYM & FITNESS. Votre abonnement se termine le {row[c_fin]}. N'oubliez pas de passer nous voir ! 💪"
+                            wa_url = f"https://wa.me{num}?text={urllib.parse.quote(msg)}"
+                            c_btn.link_button("📲 NOTIFIER", wa_url)
                     else:
                         st.success("✅ Aucun abonnement n'expire bientôt.")
                 else:
-                    st.warning("Structure de table incorrecte dans Supabase.")
+                    st.warning("Structure Supabase incomplète.")
             else:
-                st.info("La liste des abonnés est vide.")
+                st.info("La liste est vide.")
+
+    elif pwd != "":
+        st.error("❌ Code incorrect")
