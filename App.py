@@ -75,10 +75,12 @@ elif page == "🔐 Gestion Admin":
         tab1, tab2, tab3, tab4 = st.tabs(["📝 Inscriptions", "📊 Liste Membres", "📣 Publier News", "⏳ Expirations J-3"])
         
         with tab1:
+                    with tab1:
             with st.form("form_gestion", clear_on_submit=True):
                 col1, col2 = st.columns(2)
                 with col1:
                     nom = st.text_input("Nom de l'abonné")
+                    # On s'assure que le nom envoyé à Supabase sera 'WhatsApp'
                     whatsapp = st.text_input("WhatsApp (Identifiant unique)")
                     statut_opt = st.selectbox("Statut", ["Actif", "Inactif"])
                 with col2:
@@ -89,19 +91,32 @@ elif page == "🔐 Gestion Admin":
                 st.write(f"Fin prévue : **{date_fin.strftime('%d/%m/%Y')}**")
 
                 col_b1, col_b2, col_b3 = st.columns(3)
+                
+                # --- CORRECTION DES MAJUSCULES ICI ---
                 if col_b1.form_submit_button("➕ AJOUTER"):
-                    data = {"nom": nom, "date_debut": date_debut.strftime("%Y-%m-%d"), "duree_mois": int(duree), "date_fin": date_fin.strftime("%Y-%m-%d"), "whatsapp": whatsapp, "statut": statut_opt}
-                    supabase.table("abonnes").upsert(data, on_conflict="whatsapp").execute()
+                    data = {
+                        "nom": nom, 
+                        "date_debut": date_debut.strftime("%Y-%m-%d"), 
+                        "duree_mois": int(duree), 
+                        "date_fin": date_fin.strftime("%Y-%m-%d"), 
+                        "WhatsApp": whatsapp, # Majuscule ajoutée ici
+                        "statut": statut_opt
+                    }
+                    # On précise bien la majuscule aussi pour le conflit
+                    supabase.table("abonnes").upsert(data, on_conflict="WhatsApp").execute()
                     st.success(f"Ajouté : {nom}")
 
                 if col_b2.form_submit_button("🔄 MODIFIER"):
-                    data = {"nom": nom, "date_debut": date_debut.strftime("%Y-%m-%d"), "duree_mois": int(duree), "date_fin": date_fin.strftime("%Y-%m-%d"), "whatsapp": whatsapp, "statut": statut_opt}
-                    supabase.table("abonnes").upsert(data, on_conflict="whatsapp").execute()
+                    data = {
+                        "nom": nom, 
+                        "date_debut": date_debut.strftime("%Y-%m-%d"), 
+                        "duree_mois": int(duree), 
+                        "date_fin": date_fin.strftime("%Y-%m-%d"), 
+                        "WhatsApp": whatsapp, # Majuscule ajoutée ici
+                        "statut": statut_opt
+                    }
+                    supabase.table("abonnes").upsert(data, on_conflict="WhatsApp").execute()
                     st.success(f"Mis à jour : {nom}")
-
-                if col_b3.form_submit_button("🗑️ SUPPRIMER"):
-                    supabase.table("abonnes").delete().eq("whatsapp", whatsapp).execute()
-                    st.warning(f"Supprimé : {whatsapp}")
 
         with tab2:
             st.subheader("Base de données complète")
