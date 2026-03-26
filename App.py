@@ -56,7 +56,6 @@ if st.sidebar.button("🔐 GESTION ADMIN", use_container_width=True, type="prima
     st.session_state['page'] = "🔐 Gestion Admin"
     st.rerun()
 
-# On définit la variable 'page' pour la suite du code
 page = st.session_state['page']
 
 # --- PAGE 1 : PUBLICITÉ ---
@@ -97,7 +96,7 @@ elif page == "🔐 Gestion Admin":
             
             v_nom, v_wa, v_statut, v_duree = "", "", "Actif", 1
             if choix != "--- NOUVEL ABONNÉ ---":
-                l = df_selec[df_selec["nom"] == choix].iloc[0]
+                l = df_selec[df_selec["nom"] == choix].iloc
                 v_nom, v_wa, v_statut, v_duree = l["nom"], l["WhatsApp"], l["statut"], int(l["duree_mois"])
 
             with st.form("form_gestion", clear_on_submit=True):
@@ -121,7 +120,7 @@ elif page == "🔐 Gestion Admin":
             st.dataframe(charger_depuis_supabase(), use_container_width=True)
 
         with tab3:
-            st.subheader("🚀 Publier sur la Page Publicité")
+            st.subheader("🚀 Publier un Média")
             t_pub = st.selectbox("Type", ["Photo", "Vidéo", "Message"])
             fichier = st.file_uploader("Choisir un média", type=["png", "jpg", "jpeg", "mp4"])
             
@@ -167,9 +166,9 @@ elif page == "🔐 Gestion Admin":
                             num_raw = "".join(filter(str.isdigit, str(r[c_wa])))
                             num_f = "243" + (num_raw[1:] if num_raw.startswith("0") else num_raw if num_raw.startswith("243") else num_raw)
                             msg_wa = f"Bonjour {r[c_nom]} ! 👋\nC'est 365 GYM & FITNESS. Votre abonnement se termine le {r[c_fin]}."
-                            url_wa = f"https://wa.me{num_f}?text={urllib.parse.quote(msg_wa)}"
+                            wa_url = f"https://wa.me{num_f}?text={urllib.parse.quote(msg_wa)}"
                             st.write(f"🔔 **{r[c_nom]}** | Fin : {r[c_fin]}")
-                            st.markdown(f"👉 [NOTIFIER SUR WHATSAPP]({url_wa})")
+                            st.markdown(f"👉 [NOTIFIER {r[c_nom]} SUR WHATSAPP]({wa_url})")
                             st.divider()
     elif pwd != "":
         st.error("❌ Code incorrect")
