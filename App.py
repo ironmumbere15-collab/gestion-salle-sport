@@ -5,71 +5,82 @@ from datetime import datetime
 import os
 import urllib.parse
 
-# ================== SUPABASE ==================
+# ================= SUPABASE =================
 try:
     url = st.secrets["SUPABASE_URL"]
     key = st.secrets["SUPABASE_KEY"]
     supabase: Client = create_client(url, key)
 except:
-    st.error("🚨 Supabase non configuré !")
+    st.error("🚨 Configuration Supabase manquante !")
     st.stop()
 
-# ================== PAGE ==================
+# ================= CONFIG =================
 st.set_page_config(page_title="365 GYM & FITNESS", layout="wide", page_icon="💪")
 
-# ================== DESIGN IMAGE STYLE ==================
+# ================= DESIGN =================
 st.markdown("""
 <style>
 
-/* BACKGROUND GLOBAL */
+/* GLOBAL */
 .stApp {
     background-color: #0b1c2c;
+    color: white;
 }
 
 /* SIDEBAR */
 section[data-testid="stSidebar"] {
     background-color: #06121d;
-    padding-top: 20px;
 }
 
-/* MENU BUTTON STYLE */
+/* BOUTONS MENU */
 .stButton>button {
     width: 100%;
     background: transparent;
     color: white;
     border: none;
     text-align: left;
-    padding: 14px;
-    font-size: 15px;
-    border-radius: 8px;
+    padding: 15px;
+    font-size: 16px;
 }
-
 .stButton>button:hover {
-    background-color: #f1c40f;
-    color: black;
+    background-color: #ff6b2c;
+    color: white;
 }
 
-/* CARD STYLE */
+/* CONTENU */
 .block-container {
     background-color: #0f2538;
     padding: 2rem;
     border-radius: 15px;
 }
 
-/* TITRES */
-h1, h2, h3 {
-    color: #f1c40f;
+/* HERO */
+.hero {
+    background: linear-gradient(rgba(6,18,29,0.85), rgba(6,18,29,0.95)),
+                url("logo.png");
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    height: 400px;
+    border-radius: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
 }
-
-/* INPUT */
-input, textarea {
-    border-radius: 8px !important;
+.hero h1 {
+    font-size: 50px;
+    color: white;
+}
+.hero p {
+    color: #ff6b2c;
+    font-size: 18px;
 }
 
 </style>
 """, unsafe_allow_html=True)
 
-# ================== LOGO ==================
+# ================= LOGO =================
 logo_path = "logo.png"
 
 def afficher_logo(w=200):
@@ -78,7 +89,7 @@ def afficher_logo(w=200):
     else:
         st.title("🏋️ 365 GYM & FITNESS")
 
-# ================== DATA ==================
+# ================= DATA =================
 def charger_depuis_supabase():
     try:
         r = supabase.table("abonnes").select("*").execute()
@@ -93,7 +104,7 @@ def charger_publicites():
     except:
         return []
 
-# ================== NAVIGATION ==================
+# ================= NAVIGATION =================
 if "page" not in st.session_state:
     st.session_state.page = "home"
 
@@ -107,10 +118,20 @@ if st.sidebar.button("🔐 Admin"):
     st.session_state.page = "admin"
     st.rerun()
 
-# ================== PAGE PUBLIC ==================
+# ================= PAGE ACCUEIL =================
 if st.session_state.page == "home":
-    afficher_logo(250)
-    st.title("Bienvenue chez 365 GYM")
+
+    # HERO (comme ton image)
+    st.markdown("""
+    <div class="hero">
+        <div>
+            <h1>365 GYM & FITNESS</h1>
+            <p>Transforme ton corps. Dépasse tes limites.</p>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.write("")
 
     posts = charger_publicites()
 
@@ -126,9 +147,9 @@ if st.session_state.page == "home":
             else:
                 st.subheader(p["legende"])
     else:
-        st.info("🔥 Offres disponibles")
+        st.info("🔥 Bienvenue chez 365 GYM")
 
-# ================== ADMIN ==================
+# ================= ADMIN =================
 elif st.session_state.page == "admin":
 
     # LOGIN
@@ -137,7 +158,6 @@ elif st.session_state.page == "admin":
 
     if not st.session_state.logged:
         st.subheader("🔐 Connexion")
-
         pwd = st.text_input("Mot de passe", type="password")
 
         if st.button("Se connecter"):
@@ -145,7 +165,7 @@ elif st.session_state.page == "admin":
                 st.session_state.logged = True
                 st.rerun()
             else:
-                st.error("Code incorrect")
+                st.error("❌ Mauvais code")
 
     else:
         afficher_logo(100)
@@ -154,7 +174,7 @@ elif st.session_state.page == "admin":
             st.session_state.logged = False
             st.rerun()
 
-        st.header("⚙️ Tableau de bord")
+        st.header("⚙️ Admin")
 
         tab1, tab2, tab3, tab4, tab5 = st.tabs([
             "Inscriptions",
@@ -250,10 +270,9 @@ elif st.session_state.page == "admin":
                     st.success("Publié")
                     st.rerun()
 
-        # -------- EXPIRATION --------
+        # -------- EXPIRATIONS --------
         with tab4:
             df = charger_depuis_supabase()
-
             if not df.empty:
                 df["date_fin"] = pd.to_datetime(df["date_fin"])
                 today = pd.Timestamp(datetime.now().date())
@@ -267,7 +286,6 @@ elif st.session_state.page == "admin":
         # -------- EXPIRÉS --------
         with tab5:
             df = charger_depuis_supabase()
-
             if not df.empty:
                 df["date_fin"] = pd.to_datetime(df["date_fin"])
                 today = pd.Timestamp(datetime.now().date())
