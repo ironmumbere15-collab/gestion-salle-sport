@@ -5,19 +5,19 @@ from datetime import datetime
 import os
 import urllib.parse
 
-# 1. CONNEXION SUPABASE
+# 1. SUPABASE CONNECTION
 try:
     url = st.secrets["SUPABASE_URL"]
     key = st.secrets["SUPABASE_KEY"]
     supabase: Client = create_client(url, key)
 except Exception as e:
-    st.error("🚨 Configuration Supabase manquante dans les Secrets !")
+    st.error("🚨 Supabase configuration missing in Streamlit Secrets!")
     st.stop()
 
-# 2. CONFIGURATION DE LA PAGE
+# 2. PAGE CONFIGURATION
 st.set_page_config(page_title="365 GYM & FITNESS", layout="wide", page_icon="💪")
 
-# 3. GESTION DU LOGO & FONCTIONS
+# 3. LOGO GESTION & FUNCTIONS
 logo_path = "logo.png" 
 
 def afficher_logo(largeur=200):
@@ -42,10 +42,10 @@ def charger_publicites():
 
 # 4. NAVIGATION
 st.sidebar.title("🧭 Menu")
-page = st.sidebar.radio("Navigation", ["📢 Page Publicité", "🔐 Gestion Admin"])
+page = st.sidebar.radio("Navigation", ["📢 Publicité", "🔐 Gestion Admin"])
 
-# --- PAGE 1 : PUBLICITÉ (VISIBLE PAR TOUS) ---
-if page == "📢 Page Publicité":
+# --- PAGE 1: PUBLICITY (VISIBLE TO ALL) ---
+if page == "📢 Publicité":
     afficher_logo(300)
     st.title("Bienvenue chez 365 GYM & FITNESS")
     
@@ -62,9 +62,9 @@ if page == "📢 Page Publicité":
                 else:
                     st.subheader(post['legende'])
     else:
-        st.info("### 🔥 Nos Offres Exceptionnelles\n- **1 Mois** : 300 DH\n- **12 Mois** : 2500 DH")
+        st.info("### 🔥 Offres Exceptionnelles\n- **1 Mois** : 300 DH\n- **12 Mois** : 2500 DH")
 
-# --- PAGE 2 : GESTION ADMIN (MOT DE PASSE 1980) ---
+# --- PAGE 2: ADMIN MANAGEMENT (PASSWORD 1980) ---
 elif page == "🔐 Gestion Admin":
     pwd = st.sidebar.text_input("🔑 Code d'accès", type="password")
     
@@ -72,7 +72,7 @@ elif page == "🔐 Gestion Admin":
         afficher_logo(100)
         st.header("⚙️ Panneau de Contrôle Admin")
         
-        # Organisation stricte des 4 Onglets
+        # PERFECTLY ALIGNED 4 TABS
         tab1, tab2, tab3, tab4 = st.tabs(["📝 Inscriptions", "📊 Liste Membres", "📣 Publier News", "⏳ Expirations J-3"])
         
         with tab1:
@@ -123,7 +123,7 @@ elif page == "🔐 Gestion Admin":
             st.dataframe(df_view, use_container_width=True)
 
         with tab3:
-            st.subheader("🚀 Publier un Média (Galerie)")
+            st.subheader("🚀 Publier News (Galerie)")
             with st.form("form_pub", clear_on_submit=True):
                 t_pub = st.selectbox("Type", ["Photo", "Vidéo", "Message"])
                 fichier = st.file_uploader("Choisir un fichier", type=["png", "jpg", "jpeg", "mp4"])
@@ -143,11 +143,10 @@ elif page == "🔐 Gestion Admin":
                         st.rerun()
 
         with tab4:
-                    with tab4:
             st.subheader("⏳ Relances WhatsApp RDC (J-3)")
             df_suivi = charger_depuis_supabase()
             if not df_suivi.empty:
-                # 1. Détection automatique des colonnes
+                # Column detection
                 c_statut = next((c for c in df_suivi.columns if c.lower() == 'statut'), None)
                 c_fin = next((c for c in df_suivi.columns if c.lower() in ['date_fin', 'date fin']), None)
                 c_wa = next((c for c in df_suivi.columns if c.lower() == 'whatsapp'), None)
@@ -162,17 +161,16 @@ elif page == "🔐 Gestion Admin":
                     
                     if not alerte_df.empty:
                         for _, row in alerte_df.iterrows():
-                            # 2. On crée deux colonnes : une pour l'info, une pour le bouton
-                            col_info, col_bouton = st.columns([3, 1])
+                            # CLEAN ALIGNMENT
+                            col_info, col_btn = st.columns(2)
                             
                             j = row['restant']
                             emoji = "🔴" if j < 0 else "🟠"
                             txt = "Expiré" if j < 0 else f"J-{j}"
                             
-                            # Info du client
                             col_info.write(f"{emoji} **{row[c_nom]}** | {txt} | Fin : {row[c_fin]}")
                             
-                            # 3. TA LOGIQUE RDC QUI MARCHE
+                            # RDC LOGIC (243)
                             num_raw = "".join(filter(str.isdigit, str(row[c_wa])))
                             if num_raw.startswith("0"):
                                 num_final = "243" + num_raw[1:]
@@ -182,13 +180,10 @@ elif page == "🔐 Gestion Admin":
                                 num_final = num_raw
                                 
                             msg = f"Bonjour {row[c_nom]} ! 👋\nC'est 365 GYM & FITNESS. Votre abonnement se termine le {row[c_fin]}. N'oubliez pas de passer nous voir ! 💪"
+                            wa_url = f"https://wa.me{num_final}?text={urllib.parse.quote(msg)}"
                             
-                            # TON CODE WA_URL QUI MARCHE
-                            wa_url = f"https://wa.me/{num_final}?text={urllib.parse.quote(msg)}"
-                            
-                            # 4. LE BOUTON EMBELLI (Officiel Streamlit)
-                            col_bouton.link_button("📲 NOTIFIER", wa_url, use_container_width=True)
-                            
+                            # THE REAL PROFESSIONAL LINK BUTTON
+                            col_btn.link_button("📲 NOTIFIER", wa_url, use_container_width=True)
                         st.divider()
                     else:
                         st.success("✅ Aucun abonnement n'expire bientôt.")
@@ -196,3 +191,6 @@ elif page == "🔐 Gestion Admin":
                     st.warning("Structure Supabase incomplète.")
             else:
                 st.info("La liste est vide.")
+
+    elif pwd != "":
+        st.error("❌ Code incorrect")
