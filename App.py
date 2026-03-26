@@ -50,83 +50,108 @@ if "logged" not in st.session_state:
 if "edit" not in st.session_state:
     st.session_state.edit = None
 
-# ================= LAYOUT PAYSAGE =================
-col1, col2 = st.columns([3,1])  # gauche = contenu, droite = menu
+# ================= CSS LAYOUT PAYSAGE =================
+st.markdown("""
+<style>
+/* Body */
+.stApp {
+    background-color: #0b1c2c;
+    color: white;
+}
 
-# -------------------- MENU DROIT --------------------
-with col2:
-    st.markdown(
-    """
-    <style>
-    .menu-button {
-        width: 100%;
-        margin-bottom: 10px;
-        background-color: #ff6b2c;
-        color: white;
-        border-radius: 5px;
-        padding: 10px;
-        font-weight: bold;
-        border: none;
-        font-size: 16px;
-    }
-    .menu-button:hover {
-        background-color: #ff9c5c;
-        color: white;
-    }
-    </style>
-    """, unsafe_allow_html=True)
+/* Conteneur principal en paysage */
+.main-row {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-start;
+}
 
-    st.title("💎 365 GYM")
+/* Colonne gauche */
+.left-col {
+    flex: 3;
+    padding-right: 20px;
+}
 
-    if st.session_state.logged:
-        if st.button("🚪 Déconnexion", key="logout", help="Déconnexion", args=(), kwargs={}):
-            st.session_state.logged = False
-            st.session_state.page = "Accueil"
-            st.rerun()
-    
-    pages = ["Accueil","Admin"]
-    for p in pages:
-        style = st.session_state.page==p and "background-color:#ff6b2c;color:white;font-weight:bold;" or ""
-        if st.button(p, key=p, help=p):
-            st.session_state.page = p
-            st.rerun()
+/* Colonne droite menu */
+.right-col {
+    flex: 1;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+}
 
-# -------------------- CONTENU GAUCHE --------------------
-with col1:
+/* Menu boutons */
+.menu-button {
+    display: block;
+    width: 100%;
+    margin-bottom: 10px;
+    background-color: #ff6b2c;
+    color: white;
+    border-radius: 5px;
+    padding: 12px;
+    font-weight: bold;
+    text-align: center;
+    border: none;
+    font-size: 16px;
+    cursor: pointer;
+}
+.menu-button:hover {
+    background-color: #ff9c5c;
+    color: white;
+}
 
+/* Hero */
+.hero {
+    background: linear-gradient(rgba(6,18,29,0.85), rgba(6,18,29,0.95)), url('logo.png');
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    height: 400px;
+    border-radius: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+.hero h1 {
+    font-size: 50px;
+    color: white;
+}
+.hero p {
+    color: #ff6b2c;
+    font-size: 18px;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# ================= LAYOUT =================
+st.markdown('<div class="main-row">', unsafe_allow_html=True)
+
+# -------------------- COLONNE GAUCHE --------------------
+st.markdown('<div class="left-col">', unsafe_allow_html=True)
+col_left = st.container()
+
+with col_left:
     # ================= PAGE ACCUEIL =================
     if st.session_state.page == "Accueil":
-        # HERO
-        st.markdown(f"""
-        <div style="
-            background: linear-gradient(rgba(6,18,29,0.85), rgba(6,18,29,0.95)),
-                        url('{logo_path}');
-            background-size: contain;
-            background-repeat: no-repeat;
-            background-position: center;
-            height: 400px;
-            border-radius: 15px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-        ">
+        st.markdown("""
+        <div class="hero">
             <div>
-                <h1 style="color:white;font-size:50px;">365 GYM & FITNESS</h1>
-                <p style="color:#ff6b2c;font-size:18px;">Transforme ton corps. Dépasse tes limites.</p>
+                <h1>365 GYM & FITNESS</h1>
+                <p>Transforme ton corps. Dépasse tes limites.</p>
             </div>
         </div>
         """, unsafe_allow_html=True)
 
-        st.write("")
         posts = charger_publicites()
         if posts:
             for p in posts:
                 st.divider()
-                if p.get("type") == "Photo" and p.get("url_media"):
+                if p.get("type")=="Photo" and p.get("url_media"):
                     st.image(p["url_media"], use_container_width=True)
                     st.caption(p.get("legende",""))
-                elif p.get("type") == "Vidéo" and p.get("url_media"):
+                elif p.get("type")=="Vidéo" and p.get("url_media"):
                     st.video(p["url_media"])
                     st.caption(p.get("legende",""))
                 else:
@@ -136,7 +161,6 @@ with col1:
 
     # ================= PAGE ADMIN =================
     elif st.session_state.page == "Admin":
-        # LOGIN
         if not st.session_state.logged:
             pwd = st.text_input("Mot de passe", type="password")
             if st.button("Se connecter"):
@@ -149,9 +173,9 @@ with col1:
             afficher_logo(100)
             st.header("⚙️ Panneau Admin")
 
-            tab1, tab2, tab3, tab4, tab5 = st.tabs(["📝 Inscriptions", "📊 Membres", "📣 Publier", "⏳ Expirations J-3", "❌ Expirés"])
+            tab1, tab2, tab3, tab4, tab5 = st.tabs(["📝 Inscriptions","📊 Membres","📣 Publier","⏳ Expirations J-3","❌ Expirés"])
 
-            # ------------- INSCRIPTIONS -------------
+            # -------- INSCRIPTIONS --------
             with tab1:
                 df = charger_depuis_supabase()
                 noms = ["--- NOUVEL ABONNÉ ---"] + df["nom"].tolist()
@@ -182,11 +206,11 @@ with col1:
                         st.success("✅ Enregistré !")
                         st.rerun()
 
-            # ------------- MEMBRES -------------
+            # -------- MEMBRES --------
             with tab2:
                 st.dataframe(charger_depuis_supabase(), use_container_width=True)
 
-            # ------------- PUBLIER -------------
+            # -------- PUBLIER --------
             with tab3:
                 t_pub = st.selectbox("Type", ["Photo","Vidéo","Message"])
                 fichier = st.file_uploader("Choisir un média", type=["png","jpg","jpeg","mp4"])
@@ -207,7 +231,7 @@ with col1:
                         st.success("✅ Publication réussie !")
                         st.rerun()
 
-            # ------------- EXPIRATIONS J-3 -------------
+            # -------- EXPIRATIONS J-3 --------
             with tab4:
                 df_s = charger_depuis_supabase()
                 if not df_s.empty:
@@ -222,7 +246,7 @@ with col1:
                         st.markdown(f"🔔 **{r['nom']}** | Fin : {r['date_fin']}  👉 [Notifier sur WhatsApp]({wa_url})")
                         st.divider()
 
-            # ------------- EXPIRÉS -------------
+            # -------- EXPIRÉS --------
             with tab5:
                 df_s = charger_depuis_supabase()
                 if not df_s.empty:
@@ -231,3 +255,6 @@ with col1:
                     exp = df_s[df_s['restant']<0]
                     for _, r in exp.iterrows():
                         st.error(f"❌ {r['nom']} expiré depuis {abs(r['restant'])} jours")
+
+st.markdown('</div>', unsafe_allow_html=True)  # close left-col
+st.markdown('</div>', unsafe_allow_html=True)  # close main-row
