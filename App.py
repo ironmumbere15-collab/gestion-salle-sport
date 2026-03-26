@@ -114,34 +114,53 @@ elif page == "🔐 Gestion Admin":
             st.dataframe(df_view, use_container_width=True)
 
         with tab3:
+                    with tab3:
             st.subheader("🚀 Publier sur la Page Publicité")
-            # Utilisation du uploader HORS du formulaire pour l'aperçu en direct
-            t_pub = st.selectbox("Type de contenu", ["Photo", "Vidéo", "Message"])
+            t_pub = st.selectbox("Type", ["Photo", "Vidéo", "Message"])
             fichier = st.file_uploader("Choisir un fichier", type=["png", "jpg", "jpeg", "mp4"])
             
-            # APERÇU (Comme Facebook/WhatsApp)
             if fichier:
                 if t_pub == "Photo": st.image(fichier, width=300)
                 if t_pub == "Vidéo": st.video(fichier)
             
-            with st.form("form_pub_news", clear_on_submit=True):
-                m_pub = st.text_area("Légende / Message")
-                if st.form_submit_button("📢 PUBLIER MAINTENANT"):
+            with st.form("form_pub_final", clear_on_submit=True):
+                m_pub = st.text_area("Légende")
+                if st.form_submit_button("📢 PUBLIER"):
                     if fichier:
-                        nom_f = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{fichier.name}"
-                        # 1. Upload Storage
-                        supabase.storage.from_("publicite_media").upload(nom_f, fichier.getvalue())
-                        # 2. Get Public URL
-                        res = supabase.storage.from_("publicite_media").get_public_url(nom_f)
-                        url_final = res if isinstance(res, str) else res.public_url
-                        # 3. Save to Table
-                        supabase.table("publicite").insert({"type": t_pub, "url_media": url_final, "legende": m_pub}).execute()
-                        st.success("✅ Publié sur la page d'accueil !")
-                    elif t_pub == "Message" and m_pub:
-                        supabase.table("publicite").insert({"type": t_pub, "url_media": "", "legende": m_pub}).execute()
-                        st.success("✅ Message publié !")
-                    st.rerun()
-
+                        try:
+                            # ON NETTOIE LE NOM DU FICHIER POUR ÉVITER LES BUGS
+                            safe_name = "".join(x for x in fichier.name if x.isalnum() or x in "._-")
+                            nom_f = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{safe_name}"
+                            
+                            # --- ATTENTION : NOM DE TON SEAU ICI ---
+                            nom_seau = "MEDIAS PUBLICS" # Vérifie bien s'il y a un É ou E
+                            
+                            # 1. ENVOI AU STORAGE
+                            supabase.storage.from_(nom_seau).upload(
+                                path=nom_f, 
+                                file=fichier.getvalue()
+                            )
+                            
+                            # 2. RÉCUPÉRATION DE L'URL
+                            res_url = supabase.storage.from_(nom_seau).get_public_url(nom_f)
+                            url_final = res_url if isinstance(res_url, str) else res_url.public_url
+                            
+                            # 3. ENREGISTREMENT DANS LA TABLE
+                            supabase.table("publicite").insert({
+                                "type": t_pub, 
+                                "url_media": url_final, 
+                                "legende": m_pub
+                            }).execute()
+                            
+                            st.success("✅ BOUM ! C'est en ligne sur la page Publicité !")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Erreur : {e}")
+                    elif t_pub == "Message":
+                         supabase.table("publicite").insert({"type": t_pub, "url_media": "", "legende": m_pub}).execute()
+                         st.success("✅ Message posté !")
+                         st.rerun()
+                        
         with tab4:
             st.subheader("⏳ Relances WhatsApp RDC (J-3)")
             df_suivi = charger_depuis_supabase()
