@@ -143,9 +143,11 @@ elif page == "🔐 Gestion Admin":
                         st.rerun()
 
         with tab4:
+                    with tab4:
             st.subheader("⏳ Relances WhatsApp RDC (J-3)")
             df_suivi = charger_depuis_supabase()
             if not df_suivi.empty:
+                # Détection des colonnes
                 c_statut = next((c for c in df_suivi.columns if c.lower() == 'statut'), None)
                 c_fin = next((c for c in df_suivi.columns if c.lower() in ['date_fin', 'date fin']), None)
                 c_wa = next((c for c in df_suivi.columns if c.lower() == 'whatsapp'), None)
@@ -160,13 +162,10 @@ elif page == "🔐 Gestion Admin":
                     
                     if not alerte_df.empty:
                         for _, row in alerte_df.iterrows():
-                            # ALIGNEMENT STRICT
-                            c_info, c_wa_btn = st.columns(2)
-                            
+                            # Affichage simple ligne par ligne
                             j = row['restant']
                             emoji = "🔴" if j < 0 else "🟠"
                             txt = "Expiré" if j < 0 else f"J-{j}"
-                            c_info.write(f"{emoji} **{row[c_nom]}** | {txt} | Fin : {row[c_fin]}")
                             
                             # LOGIQUE RDC (243)
                             num_raw = "".join(filter(str.isdigit, str(row[c_wa])))
@@ -178,22 +177,16 @@ elif page == "🔐 Gestion Admin":
                                 num_final = num_raw
                                 
                             msg = f"Bonjour {row[c_nom]} ! 👋\nC'est 365 GYM & FITNESS. Votre abonnement se termine le {row[c_fin]}. N'oubliez pas de passer nous voir ! 💪"
-                            wa_url = f"https://api.whatsapp.com{num_final}&text={urllib.parse.quote(msg)}"
+                            # Utilisation du lien wa.me (le plus compatible en RDC)
+                            wa_url = f"https://wa.me{num_final}?text={urllib.parse.quote(msg)}"
                             
-                            # BOUTON ANTI-BLOCAGE SÉCURISÉ (HTTPS)
-                            c_wa_btn.markdown(f'''
-                                <a href="{wa_url}" target="_blank" style="text-decoration: none;">
-                                    <div style="background-color: #25D366; color: white; padding: 10px; border-radius: 8px; text-align: center; font-weight: bold; cursor: pointer; border: 1px solid #128C7E;">
-                                        📲 NOTIFIER {row[c_nom]}
-                                    </div>
-                                </a>
-                            ''', unsafe_allow_html=True)
+                            # AFFICHAGE : Texte + Lien cliquable simple
+                            st.write(f"{emoji} **{row[c_nom]}** ({txt})")
+                            st.markdown(f"👉 [CLIQUE ICI POUR NOTIFIER SUR WHATSAPP]({wa_url})")
+                            st.divider()
                     else:
                         st.success("✅ Aucun abonnement n'expire bientôt.")
                 else:
                     st.warning("Structure Supabase incomplète.")
             else:
                 st.info("La liste est vide.")
-
-    elif pwd != "":
-        st.error("❌ Code incorrect")
