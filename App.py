@@ -116,26 +116,48 @@ elif page == "🔐 Gestion Admin":
             st.dataframe(df_view, use_container_width=True)
 
         with tab3:
+                    with tab3:
             st.subheader("🚀 Publier un Média (Galerie)")
             with st.form("form_pub", clear_on_submit=True):
                 t_pub = st.selectbox("Type", ["Photo", "Vidéo", "Message"])
-                fichier = st.file_uploader("Choisir un fichier", type=["png", "jpg", "jpeg", "mp4"])
-                m_pub = st.text_area("Légende")
                 
-                if st.form_submit_button("📢 Publier"):
+                # Sélection du fichier
+                fichier = st.file_uploader("Choisir un fichier depuis votre galerie", type=["png", "jpg", "jpeg", "mp4"])
+                
+                # --- APERÇU EN DIRECT (Comme sur Facebook/WhatsApp) ---
+                if fichier is not None:
+                    if t_pub == "Photo":
+                        st.image(fichier, caption="Aperçu de votre photo", width=300)
+                    elif t_pub == "Vidéo":
+                        st.video(fichier)
+                        st.caption("Aperçu de votre vidéo")
+                
+                m_pub = st.text_area("Ajouter une légende...")
+                
+                if st.form_submit_button("📢 PUBLIER SUR LA PAGE PUBLICITÉ"):
                     if fichier:
+                        # 1. Nom unique pour le fichier
                         nom_f = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{fichier.name}"
+                        
+                        # 2. Envoi vers le Storage Supabase
                         supabase.storage.from_("publicite_media").upload(nom_f, fichier.getvalue())
-                        # Récupération URL publique
+                        
+                        # 3. Récupération de l'URL publique
                         res = supabase.storage.from_("publicite_media").get_public_url(nom_f)
                         url_finale = res if isinstance(res, str) else res.public_url
                         
-                        supabase.table("publicite").insert({"type": t_pub, "url_media": url_finale, "legende": m_pub}).execute()
-                        st.success("✅ Publication réussie !")
+                        # 4. Enregistrement dans la table pour affichage public
+                        supabase.table("publicite").insert({
+                            "type": t_pub, 
+                            "url_media": url_finale, 
+                            "legende": m_pub
+                        }).execute()
+                        
+                        st.success("🔥 C'est en ligne ! Vos clients peuvent le voir sur la page d'accueil.")
                         st.rerun()
                     elif t_pub == "Message" and m_pub:
                         supabase.table("publicite").insert({"type": t_pub, "url_media": "", "legende": m_pub}).execute()
-                        st.success("✅ Message posté !")
+                        st.success("✅ Message publié !")
                         st.rerun()
 
         with tab4:
