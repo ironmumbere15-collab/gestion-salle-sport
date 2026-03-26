@@ -3,62 +3,35 @@ from supabase import create_client, Client
 import pandas as pd
 from datetime import datetime
 
-# 1. CONNEXION SÉCURISÉE (Utilise les noms des secrets Streamlit)
+# 1. CONNEXION SUPABASE (Sécurisée via Secrets)
 try:
-    url: str = st.secrets["SUPABASE_URL"]
-    key: str = st.secrets["SUPABASE_KEY"]
+    url = st.secrets["SUPABASE_URL"]
+    key = st.secrets["SUPABASE_KEY"]
     supabase: Client = create_client(url, key)
 except Exception as e:
-    st.error("🚨 Erreur de configuration : Vérifie tes Secrets dans Streamlit Cloud !")
+    st.error("Configuration Supabase manquante dans les Secrets Streamlit.")
     st.stop()
 
-# 2. CONFIGURATION DE LA PAGE
+# 2. CONFIGURATION DE LA PAGE & STYLE
 st.set_page_config(page_title="365 GYM & FITNESS", layout="wide", page_icon="💪")
 
-# 3. STYLE PERSONNALISÉ (Correction de l'erreur TypeError ici)
 st.markdown("""
     <style>
     .main { background-color: #f0f2f6; }
-    .stButton>button { width: 100%; border-radius: 5px; height: 3em; background-color: #FF4B4B; color: white; }
-    .stTextInput>div>div>input { border-radius: 5px; }
+    .stButton>button { width: 100%; border-radius: 5px; background-color: #FF4B4B; color: white; }
+    .title-text { text-align: center; color: #1E1E1E; font-weight: bold; }
     </style>
     """, unsafe_allow_html=True)
 
-# 4. INITIALISATION DU SESSION STATE
+# 3. INITIALISATION DES DONNÉES
 if 'admin' not in st.session_state:
     st.session_state['admin'] = False
 
-if 'abonnés' not in st.session_state:
-    st.session_state['abonnés'] = pd.DataFrame(columns=["Nom", "Date début", "Durée (mois)", "Date fin", "WhatsApp", "Statut"])
-
-# 5. FONCTIONS LOGIQUES
+# 4. FONCTIONS
 def calculer_date_fin(date_debut, duree):
     return date_debut + pd.DateOffset(months=duree)
 
-def charger_depuis_supabase():
-    try:
-        response = supabase.table("abonnes").select("*").execute()
-        # On vérifie si on a bien reçu des données ET si la liste n'est pas vide
-        if response.data and len(response.data) > 0:
-            df = pd.DataFrame(response.data)
-            
-            # On vérifie que la colonne existe avant de faire le mapping
-            df_final = pd.DataFrame()
-            df_final["Nom"] = df["nom"] if "nom" in df.columns else ""
-            df_final["Date début"] = pd.to_datetime(df["date_debut"]) if "date_debut" in df.columns else datetime.now()
-            df_final["Durée (mois)"] = df["duree_mois"] if "duree_mois" in df.columns else 1
-            df_final["Date fin"] = pd.to_datetime(df["date_fin"]) if "date_fin" in df.columns else datetime.now()
-            df_final["WhatsApp"] = df["whatsapp"] if "whatsapp" in df.columns else ""
-            df_final["Statut"] = df["statut"] if "statut" in df.columns else "Actif"
-            
-            st.session_state['abonnés'] = df_final
-        else:
-            # Si la base est vide, on initialise un tableau vide propre
-            st.session_state['abonnés'] = pd.DataFrame(columns=["Nom", "Date début", "Durée (mois)", "Date fin", "WhatsApp", "Statut"])
-    except Exception as e:
-        st.error(f"Erreur de chargement : {e}")
-
-def sauvegarder_dans_supabase(nom, debut, duree, fin, whatsapp, statut):
+def sauvegarder_abonné(nom, debut, duree, fin, whatsapp, statut):
     try:
         data = {
             "nom": nom,
@@ -71,62 +44,85 @@ def sauvegarder_dans_supabase(nom, debut, duree, fin, whatsapp, statut):
         supabase.table("abonnes").upsert(data, on_conflict="whatsapp").execute()
         st.success(f"✅ {nom} enregistré avec succès !")
     except Exception as e:
-        st.error(f"Erreur de sauvegarde : {e}")
+        st.error(f"Erreur lors de l'enregistrement : {e}")
 
-# Charger les données au lancement
-if st.session_state['abonnés'].empty:
-    charger_depuis_supabase()
+def charger_abonnes():
+    try:
+        response = supabase.table("abonnes").select("*").execute()
+        if response.data:
+            df = pd.DataFrame(response.data)
+            # Mapping propre pour l'affichage
+            df_display = pd.DataFrame()
+            df_display["Nom"] = df["nom"]
+            df_display["Date début"] = pd.to_datetime(df["date_debut"])
+            df_display["Durée (mois)"] = df["duree_mois"]
+            df_display["Date fin"] = pd.to_datetime(df["date_fin"])
+            df_display["WhatsApp"] = df["whatsapp"]
+            df_display["Statut"] = df["statut"]
+            return df_display
+        return pd.DataFrame(columns=["Nom", "Date début", "Durée (mois)", "Date fin", "WhatsApp", "Statut"])
+    except:
+        return pd.DataFrame(columns=["Nom", "Date début", "Durée (mois)", "Date fin", "WhatsApp", "Statut"])
 
-# 6. INTERFACE UTILISATEUR
-st.title("🏋️ 365 GYM & FITNESS - GESTION")
+# 5. EN-TÊTE ET LOGO
+st.markdown("<h1 class='title-text'>🏋️ 365 GYM & FITNESS</h1>", unsafe_allow_html=True)
+# Remplace l'URL ci-dessous par le lien de ton image si tu en as une
+st.image("https://via.placeholder.com", use_container_width=True)
 
-# --- SECTION CONNEXION ADMIN ---
-if not st.session_state['admin']:
-    with st.sidebar:
-        st.subheader("Connexion Admin")
-        password = st.text_input("Mot de passe", type="password")
+# 6. NAVIGATION
+menu = st.sidebar.selectbox("Menu", ["Inscription Client", "Espace Admin"])
+
+# --- PAGE 1 : INSCRIPTION CLIENT ---
+if menu == "Inscription Client":
+    st.header("📝 Inscription Nouvel Abonné")
+    with st.form("form_public", clear_on_submit=True):
+        col1, col2 = st.columns(2)
+        with col1:
+            nom = st.text_input("Nom complet")
+            whatsapp = st.text_input("Numéro WhatsApp")
+        with col2:
+            date_debut = st.date_input("Date de début", datetime.now())
+            duree = st.selectbox("Forfait", [1, 3, 6, 12], format_func=lambda x: f"{x} mois")
+        
+        date_fin = calculer_date_fin(date_debut, duree)
+        st.info(f"Votre abonnement se terminera le : {date_fin.strftime('%d/%m/%Y')}")
+        
+        if st.form_submit_button("S'inscrire"):
+            if nom and whatsapp:
+                sauvegarder_abonné(nom, date_debut, duree, date_fin, whatsapp, "Actif")
+            else:
+                st.warning("Veuillez remplir tous les champs.")
+
+# --- PAGE 2 : ESPACE ADMIN ---
+elif menu == "Espace Admin":
+    if not st.session_state['admin']:
+        st.subheader("🔐 Accès Restreint")
+        pwd = st.text_input("Mot de passe Admin", type="password")
         if st.button("Se connecter"):
-            if password == "1980":
+            if pwd == "1980":
                 st.session_state['admin'] = True
                 st.rerun()
             else:
                 st.error("Mot de passe incorrect")
-else:
-    if st.sidebar.button("Se déconnecter"):
-        st.session_state['admin'] = False
-        st.rerun()
-
-# --- FORMULAIRE D'AJOUT (Visible pour tout le monde ou Admin selon ton choix) ---
-st.header("➕ Ajouter ou Modifier un Abonné")
-with st.form("form_ajoute", clear_on_submit=True):
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        nom = st.text_input("Nom complet")
-        whatsapp = st.text_input("Numéro WhatsApp")
-    with col2:
-        date_debut = st.date_input("Date de début", datetime.now())
-        duree = st.number_input("Durée (mois)", min_value=1, max_value=24, value=1)
-    with col3:
-        statut = st.selectbox("Statut", ["Actif", "Inactif", "En attente"])
-    
-    date_fin = calculer_date_fin(date_debut, duree)
-    st.info(f"Date de fin prévue : {date_fin.strftime('%d/%m/%Y')}")
-    
-    submit = st.form_submit_button("💾 Enregistrer l'abonné")
-    
-    if submit:
-        if nom and whatsapp:
-            sauvegarder_dans_supabase(nom, date_debut, duree, date_fin, whatsapp, statut)
-            charger_depuis_supabase()
-            st.rerun()
-
-# --- LISTE DES ABONNÉS ---
-st.header("📋 Liste des Abonnés")
-if not st.session_state['abonnés'].empty:
-    st.dataframe(st.session_state['abonnés'], use_container_width=True)
-else:
-    st.info("Aucun abonné trouvé.")
-
-if st.button("🔄 Actualiser"):
-    charger_depuis_supabase()
-    st.rerun()
+    else:
+        st.sidebar.button("Se déconnecter", on_click=lambda: st.session_state.update({"admin": False}))
+        
+        st.header("⚙️ Gestion des Abonnés")
+        
+        # Affichage de la liste
+        df_admin = charger_abonnes()
+        if not df_admin.empty:
+            st.dataframe(df_admin, use_container_width=True)
+            
+            # Options Admin
+            st.subheader("Actions rapides")
+            col_a, col_b = st.columns(2)
+            with col_a:
+                if st.button("🔄 Actualiser la liste"):
+                    st.rerun()
+            with col_b:
+                # Bouton pour exporter si besoin
+                csv = df_admin.to_csv(index=False).encode('utf-8')
+                st.download_button("📥 Télécharger CSV", csv, "abonnes.csv", "text/csv")
+        else:
+            st.info("Aucun abonné enregistré pour le moment.")
