@@ -80,7 +80,7 @@ elif page == "🔐 Gestion Admin":
                 with col1:
                     nom = st.text_input("Nom de l'abonné")
                     whatsapp = st.text_input("WhatsApp (Identifiant unique)")
-                    statut = st.selectbox("Statut", ["Actif", "Inactif"])
+                    statut_opt = st.selectbox("Statut", ["Actif", "Inactif"])
                 with col2:
                     date_debut = st.date_input("Date début", datetime.now())
                     duree = st.number_input("Durée (mois)", min_value=1, value=1)
@@ -90,12 +90,12 @@ elif page == "🔐 Gestion Admin":
 
                 col_b1, col_b2, col_b3 = st.columns(3)
                 if col_b1.form_submit_button("➕ AJOUTER"):
-                    data = {"nom": nom, "date_debut": date_debut.strftime("%Y-%m-%d"), "duree_mois": int(duree), "date_fin": date_fin.strftime("%Y-%m-%d"), "whatsapp": whatsapp, "statut": statut}
+                    data = {"nom": nom, "date_debut": date_debut.strftime("%Y-%m-%d"), "duree_mois": int(duree), "date_fin": date_fin.strftime("%Y-%m-%d"), "whatsapp": whatsapp, "statut": statut_opt}
                     supabase.table("abonnes").upsert(data, on_conflict="whatsapp").execute()
                     st.success(f"Ajouté : {nom}")
 
                 if col_b2.form_submit_button("🔄 MODIFIER"):
-                    data = {"nom": nom, "date_debut": date_debut.strftime("%Y-%m-%d"), "duree_mois": int(duree), "date_fin": date_fin.strftime("%Y-%m-%d"), "whatsapp": whatsapp, "statut": statut}
+                    data = {"nom": nom, "date_debut": date_debut.strftime("%Y-%m-%d"), "duree_mois": int(duree), "date_fin": date_fin.strftime("%Y-%m-%d"), "whatsapp": whatsapp, "statut": statut_opt}
                     supabase.table("abonnes").upsert(data, on_conflict="whatsapp").execute()
                     st.success(f"Mis à jour : {nom}")
 
@@ -129,41 +129,33 @@ elif page == "🔐 Gestion Admin":
                         st.rerun()
 
         with tab4:
-                    with tab4:
             st.subheader("⏳ Alertes d'expiration (J-3)")
             df_suivi = charger_depuis_supabase()
-            
-            # Vérification si les colonnes nécessaires existent
             if not df_suivi.empty:
+                # Vérification sécurité colonnes
                 if 'date_fin' in df_suivi.columns and 'statut' in df_suivi.columns:
                     aujourdhui = pd.Timestamp(datetime.now().date())
                     df_suivi['date_fin_dt'] = pd.to_datetime(df_suivi['date_fin'])
                     df_suivi['restant'] = (df_suivi['date_fin_dt'] - aujourdhui).dt.days
                     
-                    # Filtrer ceux qui expirent dans 3 jours ou moins et qui sont Actifs
+                    # Filtrer
                     alerte_df = df_suivi[(df_suivi['restant'] <= 3) & (df_suivi['statut'].str.lower() == 'actif')]
                     
                     if not alerte_df.empty:
                         for _, row in alerte_df.iterrows():
-                            c_info, c_wa = st.columns([3, 1])
+                            c_info, c_wa = st.columns()
                             j = row['restant']
                             emoji = "🔴" if j < 0 else "🟠"
-                            txt = "Déjà expiré" if j < 0 else f"Expire dans {j} jours"
-                            
+                            txt = "Expiré" if j < 0 else f"J-{j}"
                             c_info.write(f"{emoji} **{row['nom']}** ({txt}) - Fin le {row['date_fin']}")
                             
-                            # Préparation du lien WhatsApp
-                            message_wa = f"Bonjour {row['nom']}, c'est 365 GYM & FITNESS. Votre abonnement se termine le {row['date_fin']}. N'oubliez pas de passer nous voir pour le renouveler ! 💪"
-                            wa_url = f"https://wa.me{row['whatsapp']}?text={message_wa.replace(' ', '%20')}"
-                            c_wa.markdown(f"[📲 Envoyer Relance]({wa_url})")
+                            msg = f"Bonjour {row['nom']}, c'est 365 GYM & FITNESS. Votre abonnement se termine le {row['date_fin']}. N'oubliez pas de passer nous voir ! 💪"
+                            wa_url = f"https://wa.me{row['whatsapp']}?text={msg.replace(' ', '%20')}"
+                            c_wa.markdown(f"[📲 Notifier]({wa_url})")
                     else:
-                        st.success("✅ Aucun abonnement n'expire dans les 3 prochains jours.")
+                        st.success("✅ Aucun abonnement n'expire bientôt.")
                 else:
-                    st.warning("⚠️ Les colonnes 'date_fin' ou 'statut' sont introuvables dans Supabase. Vérifiez les noms dans votre table.")
-            else:
-                st.info("La liste des abonnés est vide.")
-                else:
-                    st.success("Tout est à jour ! Aucun abonnement n'expire bientôt.")
+                    st.warning("⚠️ Problème de colonnes dans Supabase (statut ou date_fin).")
             else:
                 st.info("La liste est vide.")
 
