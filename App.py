@@ -15,14 +15,14 @@ except Exception as e:
 # 2. CONFIGURATION DE LA PAGE
 st.set_page_config(page_title="365 GYM & FITNESS", layout="wide", page_icon="💪")
 
-# 3. STYLE PERSONNALISÉ (CSS)
+# 3. STYLE PERSONNALISÉ (Correction de l'erreur TypeError ici)
 st.markdown("""
     <style>
     .main { background-color: #f0f2f6; }
     .stButton>button { width: 100%; border-radius: 5px; height: 3em; background-color: #FF4B4B; color: white; }
     .stTextInput>div>div>input { border-radius: 5px; }
     </style>
-    """, unsafe_allow_now=True)
+    """, unsafe_allow_html=True)
 
 # 4. INITIALISATION DU SESSION STATE
 if 'admin' not in st.session_state:
@@ -40,7 +40,6 @@ def charger_depuis_supabase():
         response = supabase.table("abonnes").select("*").execute()
         if response.data:
             df = pd.DataFrame(response.data)
-            # Conversion pour l'affichage Streamlit
             df_final = pd.DataFrame()
             df_final["Nom"] = df["nom"]
             df_final["Date début"] = pd.to_datetime(df["date_debut"])
@@ -90,13 +89,13 @@ else:
         st.session_state['admin'] = False
         st.rerun()
 
-# --- FORMULAIRE D'AJOUT ---
+# --- FORMULAIRE D'AJOUT (Visible pour tout le monde ou Admin selon ton choix) ---
 st.header("➕ Ajouter ou Modifier un Abonné")
 with st.form("form_ajoute", clear_on_submit=True):
     col1, col2, col3 = st.columns(3)
     with col1:
         nom = st.text_input("Nom complet")
-        whatsapp = st.text_input("Numéro WhatsApp (ex: 2126000000)")
+        whatsapp = st.text_input("Numéro WhatsApp")
     with col2:
         date_debut = st.date_input("Date de début", datetime.now())
         duree = st.number_input("Durée (mois)", min_value=1, max_value=24, value=1)
@@ -111,18 +110,16 @@ with st.form("form_ajoute", clear_on_submit=True):
     if submit:
         if nom and whatsapp:
             sauvegarder_dans_supabase(nom, date_debut, duree, date_fin, whatsapp, statut)
-            charger_depuis_supabase() # Rafraîchir la liste
+            charger_depuis_supabase()
             st.rerun()
-        else:
-            st.warning("Veuillez remplir le nom et le numéro WhatsApp.")
 
 # --- LISTE DES ABONNÉS ---
 st.header("📋 Liste des Abonnés")
 if not st.session_state['abonnés'].empty:
     st.dataframe(st.session_state['abonnés'], use_container_width=True)
 else:
-    st.info("Aucun abonné trouvé dans la base de données.")
+    st.info("Aucun abonné trouvé.")
 
-if st.button("🔄 Forcer la synchronisation"):
+if st.button("🔄 Actualiser"):
     charger_depuis_supabase()
     st.rerun()
