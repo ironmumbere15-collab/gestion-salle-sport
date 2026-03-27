@@ -188,7 +188,7 @@ elif page == "🔐 Gestion Admin":
                     num_raw = "".join(filter(str.isdigit,str(r["WhatsApp"])))
                     num_final = "243"+(num_raw[1:] if num_raw.startswith("0") else num_raw)
                     msg = f"Bonjour {r['nom']} ! 👋 Votre abonnement 365 GYM se termine le {r['date_fin']}."
-                    st.markdown(f"🔔 **{r['nom']}** | [Envoyer WhatsApp](https://wa.me{num_final}?text={urllib.parse.quote(msg)})")
+                    st.markdown(f" {r['nom']} | [Envoyer WhatsApp](https://wa.me{num_final}?text={urllib.parse.quote(msg)})")
 
         # --- TAB 5 : EXPIRÉS ---
         with tab5:
