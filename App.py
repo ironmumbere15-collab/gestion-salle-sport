@@ -4,6 +4,7 @@ import pandas as pd
 from datetime import datetime
 import os
 import urllib.parse
+from whatsapp_sender import envoyer_lien_profil_whatsapp, generer_lien_et_message
 
 # ================= CONFIG & DESIGN (NOIR & OR - ADVENTURE) =================
 st.set_page_config(page_title="365 GYM & FITNESS", layout="wide", page_icon="💪")
@@ -91,11 +92,11 @@ if page == "📢 Page Publicité":
     st.write("##")
     c1, c2, c3 = st.columns(3)
     with c1:
-        st.markdown(f"<div style='background:rgba(255,255,255,0.1); padding:20px; border-radius:10px; border-left:5px solid {LOGO_GOLD}; height:180px;'><h3 style='color:{LOGO_GOLD};'>⏰ HORAIRES</h3><p style='color:white;'><b>MATIN :</b> 06h00 — 09h00<br><b>SOIR :</b> 16h00 — 19h00</p><p style='color:gray; font-size:0.8em;'>Lundi au Samedi</p></div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='background:rgba(255,255,255,0.1); padding:20px; border-radius:10px; border-left:5px solid {LOGO_GOLD}; height:180px;'><h3 style='color:{LOGO_GOLD};'>⏰ HORAIRES</h3><p>Lun-Dim: 6h-22h</p><p style='color:#aaa;'>Accès 24/7 pour nos abonnés VIP</p></div>", unsafe_allow_html=True)
     with c2:
-        st.markdown(f"<div style='background:rgba(255,255,255,0.1); padding:20px; border-radius:10px; border-left:5px solid {LOGO_GOLD}; height:180px;'><h3 style='color:{LOGO_GOLD};'>💪 SERVICES</h3><ul style='color:white;'><li>Musculation & Cardio</li><li>Coaching Perso</li><li>Suivi Diététique</li></ul></div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='background:rgba(255,255,255,0.1); padding:20px; border-radius:10px; border-left:5px solid {LOGO_GOLD}; height:180px;'><h3 style='color:{LOGO_GOLD};'>💪 SERVICES</h3><p>Musculation • Cardio • CrossFit</p><p style='color:#aaa;'>Coaching personnalisé disponible</p></div>", unsafe_allow_html=True)
     with c3:
-        st.markdown(f"<div style='background:rgba(255,255,255,0.1); padding:20px; border-radius:10px; border-left:5px solid {LOGO_GOLD}; height:180px;'><h3 style='color:{LOGO_GOLD};'>📍 INFOS</h3><p style='color:white;'><b>Ambiance :</b> Motivation Maximale<br><b>Équipement :</b> Premium 2024</p></div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='background:rgba(255,255,255,0.1); padding:20px; border-radius:10px; border-left:5px solid {LOGO_GOLD}; height:180px;'><h3 style='color:{LOGO_GOLD};'>📍 INFOS</h3><p>📞 +243 123 456 789</p><p style='color:#aaa;'>Kinshasa, RDC</p></div>", unsafe_allow_html=True)
 
     st.write("##")
     st.markdown(f"<h2 style='text-align:center; color:{LOGO_GOLD};'>📢 NOS ACTUALITÉS</h2>", unsafe_allow_html=True)
@@ -135,12 +136,19 @@ elif page == "🔐 Gestion Admin":
                 with col2:
                     debut = st.date_input("Début", datetime.now())
                     mois = st.number_input("Mois", min_value=1, value=int(edit['duree_mois']) if edit else 1)
+                
                 if st.form_submit_button("💾 ENREGISTRER"):
                     fin = debut + pd.DateOffset(months=mois)
                     data = {"nom":nom,"date_debut":debut.strftime("%Y-%m-%d"),"duree_mois":int(mois),"date_fin":fin.strftime("%Y-%m-%d"),"WhatsApp":wa,"statut":stt}
                     supabase.table("abonnes").upsert(data, on_conflict="WhatsApp").execute()
+                    
+                    # 🚀 ENVOYER LE LIEN WHATSAPP AUTOMATIQUEMENT
+                    if envoyer_lien_profil_whatsapp(wa, nom):
+                        st.success("✅ Enregistré et lien WhatsApp envoyé ! 🎉")
+                    else:
+                        st.warning("✅ Enregistré mais erreur lors de l'envoi WhatsApp")
+                    
                     st.session_state.edit_item = None
-                    st.success("✅ Enregistré !")
                     st.rerun()
 
         # --- TAB 2 : LISTE AVEC BOUTONS ---
@@ -148,7 +156,7 @@ elif page == "🔐 Gestion Admin":
             df = charger_depuis_supabase()
             if not df.empty:
                 for i, r in df.iterrows():
-                    c1, c2, c3, c4 = st.columns([3,3,1,1])
+                    c1, c2, c3, c4, c5 = st.columns([2,2,1,1,1])
                     c1.write(f"👤 {r['nom']}")
                     c2.write(f"📅 Fin: {r['date_fin']}")
                     if c3.button("✏️", key=f"e{i}"):
@@ -157,6 +165,12 @@ elif page == "🔐 Gestion Admin":
                     if c4.button("🗑️", key=f"d{i}"):
                         supabase.table("abonnes").delete().eq("WhatsApp", r['WhatsApp']).execute()
                         st.rerun()
+                    if c5.button("📤", key=f"w{i}"):
+                        # Renvoyer le lien WhatsApp manuellement
+                        if envoyer_lien_profil_whatsapp(r['WhatsApp'], r['nom']):
+                            st.success(f"✅ Lien WhatsApp renvoyé à {r['nom']}")
+                        else:
+                            st.error(f"❌ Erreur lors de l'envoi à {r['nom']}")
 
         # --- TAB 3 : PUBLIER (CORRECTION ROBUSTE URL) ---
         with tab3:
@@ -169,7 +183,6 @@ elif page == "🔐 Gestion Admin":
                     if fichier:
                         fname = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{fichier.name}"
                         supabase.storage.from_("medias").upload(fname, fichier.getvalue())
-                        # Correction de l'erreur AttributeError ici :
                         res_url = supabase.storage.from_("medias").get_public_url(fname)
                         url_f = res_url if isinstance(res_url, str) else res_url.public_url
                     
@@ -184,11 +197,14 @@ elif page == "🔐 Gestion Admin":
                 df_s['date_fin_dt'] = pd.to_datetime(df_s['date_fin'])
                 df_s['restant'] = (df_s['date_fin_dt'] - pd.Timestamp(datetime.now().date())).dt.days
                 alerte = df_s[(df_s['restant']<=3) & (df_s['restant']>=0) & (df_s['statut']=="Actif")]
-                for _,r in alerte.iterrows():
-                    num_raw = "".join(filter(str.isdigit,str(r["WhatsApp"])))
-                    num_final = "243"+(num_raw[1:] if num_raw.startswith("0") else num_raw)
-                    msg = f"Bonjour {r['nom']} ! 👋 Votre abonnement 365 GYM se termine le {r['date_fin']}."
-                    st.markdown(f"  {r['nom']} | [Envoyer WhatsApp](https://wa.me{num_final}?text={urllib.parse.quote(msg)})")
+                if not alerte.empty:
+                    for _,r in alerte.iterrows():
+                        num_raw = "".join(filter(str.isdigit,str(r["WhatsApp"])))
+                        num_final = "243"+(num_raw[1:] if num_raw.startswith("0") else num_raw)
+                        msg = f"Bonjour {r['nom']} ! 👋 Votre abonnement 365 GYM se termine le {r['date_fin']}."
+                        st.markdown(f"  {r['nom']} | [Envoyer WhatsApp](https://wa.me/{num_final}?text={urllib.parse.quote(msg)})")
+                else:
+                    st.info("✅ Aucun client n'expire dans les 3 prochains jours")
 
         # --- TAB 5 : EXPIRÉS ---
         with tab5:
